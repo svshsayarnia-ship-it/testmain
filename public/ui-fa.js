@@ -26,7 +26,7 @@ var dictionary={
  "Rule Matrix":"جدول قوانین","Rule Engine":"موتور قوانین","Decision Engine":"موتور تصمیم‌گیری","Decision Center":"مرکز تصمیم",
  "Acceptance Suite":"مجموعه آزمون پذیرش","Close Case":"بستن پرونده","Verify":"تأیید نتیجه","Acknowledge":"مشاهده شد","Complete":"تکمیل",
  "Reset Kernel":"بازنشانی هسته مدیریت","Processed":"پردازش شد","No links":"ارتباطی ثبت نشده است","On Track":"طبق برنامه",
- "Source":"منبع","Priority":"اولویت","Severity":"شدت","HSE":"بهداشت، ایمنی و محیط‌زیست"
+ "Source":"منبع","Priority":"اولویت","Severity":"شدت","Deadline":"مهلت انجام","Due Date":"مهلت انجام","HSE":"بهداشت، ایمنی و محیط‌زیست"
 };
 
 function t(key,fallback){
