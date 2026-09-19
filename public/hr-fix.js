@@ -1,7 +1,8 @@
 (function(){
 "use strict";
 
-var HRKEY="ard_hr_v2_store";
+var HRUIKEY="ard_hr_ui_v3";
+function kernel(){return window.ManagementKernel&&window.ManagementKernel.version===2?window.ManagementKernel:null}
 var defaultStore={
   performance:[
     {id:"PERF-Q2-41",employeeId:"EMP-41",name:"حسین مرادی",unit:"تولید",period:"۱۴۰۵-Q2",kpi:"تحقق برنامه شیفت",target:95,actual:88,score:88,status:"نیازمند بهبود"},
@@ -31,16 +32,31 @@ var defaultStore={
 
 function clone(x){return JSON.parse(JSON.stringify(x))}
 function load(){
-  try{
-    var x=JSON.parse(localStorage.getItem(HRKEY)||"null");
-    if(x && x.performance && x.training && x.competency) return x;
-  }catch(e){}
-  return clone(defaultStore);
+  var activeTab="succession";
+  try{var ui=JSON.parse(localStorage.getItem(HRUIKEY)||"null");if(ui&&ui.activeTab)activeTab=ui.activeTab}catch(e){}
+  var K=kernel();
+  if(K&&K.queryBusinessRecords){
+    var exp={};
+    K.queryBusinessRecords("hrExperience").forEach(function(x){exp[x.employeeId]=+x.score||0});
+    return {
+      performance:K.queryBusinessRecords("hrPerformance"),
+      training:K.queryBusinessRecords("hrTraining"),
+      competency:K.queryBusinessRecords("hrCompetency"),
+      experience:exp,
+      positions:clone(defaultStore.positions),
+      activeTab:activeTab
+    };
+  }
+  var d=clone(defaultStore);d.activeTab=activeTab;return d;
 }
 var store=load();
 
 function save(){
-  localStorage.setItem(HRKEY,JSON.stringify(store));
+  localStorage.setItem(HRUIKEY,JSON.stringify({activeTab:store.activeTab}));
+}
+function canReadHR(){
+  var K=kernel();if(!K)return true;
+  return K.can("read","business_record",{module:"hr",department:"HR",sensitivity:"restricted"});
 }
 function e(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
 function fa(n){try{return new Intl.NumberFormat("fa-IR").format(n)}catch(_){return n}}
@@ -66,11 +82,12 @@ function scoreFor(emp){
   return {perf:perf,train:train,comp:comp,exp:exp,total:total,readiness:readiness,tone:tone,gap:gaps[0]&&gaps[0].gap?gaps[0].name+" ("+gaps[0].gap+")":"بدون Gap بحرانی"};
 }
 function candidates(){
-  return [
-    {id:"EMP-41",name:"حسین مرادی"},
-    {id:"EMP-57",name:"مهدی رضایی"},
-    {id:"EMP-22",name:"علی موسوی"}
-  ];
+  var K=kernel();
+  if(K){
+    var raw=K.getStore(),ids=["EMP-41","EMP-57","EMP-22"];
+    return ids.map(function(id){return raw.master.entities[id]}).filter(function(x){return x&&K.can("read","entity",x)}).map(function(x){return {id:x.id,name:x.name}});
+  }
+  return [{id:"EMP-41",name:"حسین مرادی"},{id:"EMP-57",name:"مهدی رضایی"},{id:"EMP-22",name:"علی موسوی"}];
 }
 function meter(label,value){
   return '<div class="hrx-meter"><div><span>'+e(label)+'</span><b>'+fa(value)+'٪</b></div><div class="hrx-bar"><i style="width:'+Math.max(0,Math.min(100,value))+'%"></i></div></div>';
@@ -135,13 +152,19 @@ function competency(){
     '<div class="option"><p>Gap شایستگی مستقیماً ورودی نیاز آموزشی و Readiness جانشینی است؛ داده در این ماژول مالکیت دارد.</p></div></div>';
 }
 function renderHR(tab){
-  if(tab) store.activeTab=tab;
+  var prev=store&&store.activeTab||"succession";
+  store=load();
+  store.activeTab=tab||prev||store.activeTab;
   save();
   var c=document.getElementById("content");
   if(!c) return;
+  if(!canReadHR()){
+    c.innerHTML='<div id="hrx-root"><div class="head"><div><h2>سرمایه انسانی</h2><p>دسترسی این بخش بر اساس Role + Department + Scope + Sensitivity کنترل می‌شود.</p></div></div><div class="card panel"><div class="option"><p><b>دسترسی محدود است.</b><br>نقش فعال اجازه مشاهده رکوردهای Restricted سرمایه انسانی را ندارد.</p></div></div></div>';
+    return;
+  }
   var body=store.activeTab==="performance"?performance():store.activeTab==="training"?training():store.activeTab==="competency"?competency():succession();
   c.innerHTML='<div id="hrx-root">'+
-    '<div class="head"><div><h2>سرمایه انسانی</h2><p>منبع یکتای داده برای عملکرد، آموزش و شایستگی؛ جانشین‌پروری فقط مصرف‌کننده و تحلیل‌گر است.</p></div><div class="acts"><button class="btn" data-hraction="reset">بازنشانی داده نمونه</button></div></div>'+
+    '<div class="head"><div><h2>سرمایه انسانی</h2><p>Performance، Training و Competency مستقیماً از Management Kernel خوانده می‌شوند؛ Succession فقط تحلیل‌گر همین منابع است.</p></div><div class="acts"><button class="btn" data-hraction="reset">بازنشانی داده نمونه</button></div></div>'+
     summary()+tabs()+body+
   '</div>';
 }
@@ -180,17 +203,33 @@ function notify(msg){
   if(!box)return;
   var x=document.createElement("div");x.className="toast";x.innerHTML="<b>"+e(msg)+"</b><small>اطلاعات جانشین‌پروری نیز بروزرسانی شد.</small>";box.appendChild(x);setTimeout(function(){x.remove()},3000);
 }
+function emitSuccessionRecalc(reason){
+  var K=kernel();if(!K)return;
+  K.emitEvent({type:"HR.KeyPositionRisk",module:"hr",entityId:"POS-14",severity:"S3",impact:"I3",urgency:"U2",context:reason||"منابع HR بروزرسانی شدند و Readiness باید دوباره ارزیابی شود.",sensitivity:"restricted"});
+}
 function savePerformance(){
-  var id=val("hr-id"),emp=val("hr-emp"),rec={id:id||"PERF-"+Date.now(),employeeId:emp,name:personName(emp),unit:"تولید",period:val("hr-period"),kpi:val("hr-kpi"),target:num("hr-target"),actual:num("hr-actual"),score:num("hr-score"),status:num("hr-score")>=90?"خوب":num("hr-score")>=80?"قابل قبول":"نیازمند بهبود"};
-  var i=store.performance.findIndex(function(x){return x.id===id});if(i>=0)store.performance[i]=rec;else store.performance.push(rec);save();closeModal();renderHR("performance");notify("ارزیابی عملکرد ذخیره شد");
+  var K=kernel(),id=val("hr-id"),emp=val("hr-emp"),rec={id:id||"PERF-"+Date.now(),employeeId:emp,name:personName(emp),unit:"تولید",period:val("hr-period"),kpi:val("hr-kpi"),target:num("hr-target"),actual:num("hr-actual"),score:num("hr-score"),status:num("hr-score")>=90?"خوب":num("hr-score")>=80?"قابل قبول":"نیازمند بهبود"};
+  try{if(K)K.upsertBusinessRecord("hrPerformance",rec);else throw new Error("Kernel unavailable");closeModal();emitSuccessionRecalc("Performance بروزرسانی شد.");renderHR("performance");notify("ارزیابی عملکرد در Kernel ذخیره شد")}catch(err){notify("ذخیره عملکرد ناموفق",err.message)}
 }
 function saveTraining(){
-  var id=val("hr-id"),emp=val("hr-emp"),post=num("hr-post"),pre=num("hr-pre"),impact=num("hr-impact"),rec={id:id||"TR-"+Date.now(),employeeId:emp,name:personName(emp),need:val("hr-need"),course:val("hr-course"),pre:pre,post:post,impact:impact,status:(post-pre)>=15&&impact>=70?"اثربخش":"نیازمند پیگیری"};
-  var i=store.training.findIndex(function(x){return x.id===id});if(i>=0)store.training[i]=rec;else store.training.push(rec);save();closeModal();renderHR("training");notify("رکورد آموزش ذخیره شد");
+  var K=kernel(),id=val("hr-id"),emp=val("hr-emp"),post=num("hr-post"),pre=num("hr-pre"),impact=num("hr-impact"),rec={id:id||"TR-"+Date.now(),employeeId:emp,name:personName(emp),need:val("hr-need"),course:val("hr-course"),pre:pre,post:post,impact:impact,status:(post-pre)>=15&&impact>=70?"اثربخش":"نیازمند پیگیری"};
+  try{if(K)K.upsertBusinessRecord("hrTraining",rec);else throw new Error("Kernel unavailable");closeModal();emitSuccessionRecalc("Training بروزرسانی شد.");renderHR("training");notify("رکورد آموزش در Kernel ذخیره شد")}catch(err){notify("ذخیره آموزش ناموفق",err.message)}
 }
 function saveCompetency(){
-  var id=val("hr-id"),emp=val("hr-emp"),rec={id:id||"COMP-"+Date.now(),employeeId:emp,name:personName(emp),role:val("hr-role"),competency:val("hr-comp"),required:num("hr-required"),actual:num("hr-actual")};
-  var i=store.competency.findIndex(function(x){return x.id===id});if(i>=0)store.competency[i]=rec;else store.competency.push(rec);save();closeModal();renderHR("competency");notify("ارزیابی شایستگی ذخیره شد");
+  var K=kernel(),id=val("hr-id"),emp=val("hr-emp"),rec={id:id||"COMP-"+Date.now(),employeeId:emp,name:personName(emp),role:val("hr-role"),competency:val("hr-comp"),required:num("hr-required"),actual:num("hr-actual")};
+  try{if(K)K.upsertBusinessRecord("hrCompetency",rec);else throw new Error("Kernel unavailable");closeModal();emitSuccessionRecalc("Competency بروزرسانی شد.");renderHR("competency");notify("ارزیابی شایستگی در Kernel ذخیره شد")}catch(err){notify("ذخیره شایستگی ناموفق",err.message)}
+}
+function resetHRSource(){
+  var K=kernel();if(!K)return;
+  try{
+    [["hrPerformance","performance"],["hrTraining","training"],["hrCompetency","competency"]].forEach(function(pair){
+      K.queryBusinessRecords(pair[0]).forEach(function(x){K.removeBusinessRecord(pair[0],x.id)});
+      defaultStore[pair[1]].forEach(function(x){K.upsertBusinessRecord(pair[0],x)});
+    });
+    K.queryBusinessRecords("hrExperience").forEach(function(x){K.removeBusinessRecord("hrExperience",x.id)});
+    Object.keys(defaultStore.experience).forEach(function(emp){K.upsertBusinessRecord("hrExperience",{id:"EXP-"+emp.replace("EMP-",""),employeeId:emp,score:defaultStore.experience[emp]})});
+    emitSuccessionRecalc("منابع نمونه HR بازنشانی شدند.");renderHR("succession");notify("داده نمونه HR در Kernel بازنشانی شد");
+  }catch(err){notify("بازنشانی ناموفق",err.message)}
 }
 function development(){
   var rows=candidates().map(function(c){var s=scoreFor(c.id);return '<div class="att"><div style="flex:1"><h4>'+e(c.name)+'</h4><p>'+e(s.readiness)+' · Gap: '+e(s.gap)+'</p></div><span class="chip">هدف: Ready Now</span></div>'}).join("");
@@ -212,7 +251,7 @@ document.addEventListener("click",function(ev){
   if(a==="save-competency")saveCompetency();
   if(a==="development")development();
   if(a==="close-modal")closeModal();
-  if(a==="reset"){store=clone(defaultStore);save();renderHR("succession");notify("داده نمونه سرمایه انسانی بازنشانی شد")}
+  if(a==="reset")resetHRSource()
 });
 
 var style=document.createElement("style");
@@ -226,4 +265,7 @@ var obs=new MutationObserver(function(){
 });
 var content=document.getElementById("content");
 if(content)obs.observe(content,{childList:true,subtree:false});
+window.addEventListener("management-kernel:update",function(){
+  var root=document.getElementById("hrx-root");if(root)setTimeout(function(){renderHR(store.activeTab||"succession")},20);
+});
 })();
