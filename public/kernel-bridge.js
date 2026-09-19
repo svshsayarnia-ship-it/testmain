@@ -108,14 +108,6 @@ if(typeof oldCommit==="function"){
   return r
  }
 }
-document.addEventListener("click",function(ev){
- var hr=ev.target.closest("[data-hraction]");
- if(!hr)return;
- var a=hr.getAttribute("data-hraction");
- if(/^save-(performance|training|competency)$/.test(a)){
-  setTimeout(function(){K.emitEvent({type:"HR.KeyPositionRisk",module:"hr",entityId:"POS-14",severity:"S3",impact:"I3",urgency:"U2",context:"داده عملکرد/آموزش/شایستگی بروزرسانی شد و Readiness جانشینی دوباره ارزیابی شد."});refreshDecor()},80)
- }
-},true);
 window.addEventListener("management-kernel:update",refreshDecor);
 var mo=new MutationObserver(refreshDecor);var c=document.getElementById("content");if(c)mo.observe(c,{childList:true,subtree:false});
 var style=document.createElement("style");style.textContent=".mk-live{border:1px solid #99f6e4!important;background:linear-gradient(180deg,#f0fdfa,#fff)!important}.mk-modal{max-width:1050px!important}#mk-dashboard{border:1px solid #bae6fd}.topacts #kernelBtn{font-size:15px}.mk-live .att{padding:9px 0}.mk-live .grid.two{align-items:start}";document.head.appendChild(style);
