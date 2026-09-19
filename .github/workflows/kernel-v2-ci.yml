@@ -14,7 +14,7 @@ on:
       - "public/hr-fix.js"
       - "public/index.html"
       - "public/ard-v2.css"
-      - "public/ui-fa.js"
+      - "public/ui-fa.js"\n      - "api/coach.js"\n      - "tests/audit-regression.mjs"\n      - "public/management-kernel.js"
       - "public/fonts/**"
       - "tests/kernel-v2-smoke.mjs"
       - "tests/ui-contract.mjs"
