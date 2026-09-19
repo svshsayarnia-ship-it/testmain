@@ -1,10 +1,11 @@
 (function(){
 "use strict";
 
-var KEY="ard_ops_depth_v1";
-var state={active:{},executions:[],actions:[]};
-try{var saved=JSON.parse(localStorage.getItem(KEY)||"null");if(saved)state=saved}catch(e){}
-function save(){localStorage.setItem(KEY,JSON.stringify(state))}
+var UIKEY="ard_ops_depth_ui_v2";
+var state={active:{}};
+try{var saved=JSON.parse(localStorage.getItem(UIKEY)||"null");if(saved&&saved.active)state.active=saved.active}catch(e){}
+function save(){localStorage.setItem(UIKEY,JSON.stringify({active:state.active}))}
+function kernel(){return window.ManagementKernel&&window.ManagementKernel.version===2?window.ManagementKernel:null}
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
 function fa(n){try{return new Intl.NumberFormat("fa-IR").format(n)}catch(e){return n}}
 function tone(t){return /Critical|بحران|P1|بالا|قرمز/.test(t)?"critical":/High|هشدار|متوسط|P2|تاخیر|ریسک/.test(t)?"high":/سالم|Completed|سبز|عادی|پایین/.test(t)?"ok":"wait"}
@@ -20,7 +21,7 @@ function head(c){return '<div class="head"><div><h2>'+esc(c.title)+'</h2><p>'+es
 function tabs(c){var a=state.active[c.key]||"overview",items=[["overview","نمای کلی"],["ops","عملیات"],["flow","فرایند و کنترل"],["rules","Exception / Rule"],["deps","ارتباطات"],["reports","KPI و گزارش"]];return '<div class="tabs od-tabs">'+items.map(function(x){return '<button class="tab '+(a===x[0]?"active":"")+'" data-od="tab" data-key="'+c.key+'" data-tab="'+x[0]+'">'+x[1]+'</button>'}).join("")+'</div>'}
 function areaCards(c){return '<div class="grid od-areas">'+c.areas.map(function(a){return '<div class="card panel od-area"><div class="pt">'+esc(a[0])+'</div><div class="ps">'+esc(a[1])+'</div><div class="meta">'+chip("Owner: "+a[2])+chip("Source: "+a[3])+'</div></div>'}).join("")+'</div>'}
 function exceptionCards(c){return c.exceptions.map(function(x,i){return '<div class="att od-ex"><span class="dot '+(tone(x[2])==="critical"?"red":"amber")+'"></span><div style="flex:1"><h4>'+esc(x[0])+'</h4><p>'+esc(x[1])+'</p><div class="meta">'+chip(x[2])+chip("Owner: "+x[3])+chip(x[4])+'</div></div><button class="btn sm" data-od="run-rule" data-key="'+c.key+'" data-idx="'+i+'">اجرای Rule</button></div>'}).join("")}
-function actionList(c){var a=state.actions.filter(function(x){return x.key===c.key});if(!a.length)return '<div class="option"><p>اقدام دستی فعالی برای این ماژول ثبت نشده است.</p></div>';return a.map(function(x){return '<div class="att"><span class="dot '+(x.status==="Completed"?"":"amber")+'"></span><div style="flex:1"><h4>'+esc(x.title)+'</h4><p>'+esc(x.owner)+' · '+esc(x.due)+'</p></div>'+st(x.status)+' <button class="btn sm" data-od="complete-action" data-id="'+x.id+'">تکمیل</button></div>'}).join("")}
+function actionList(c){var K=kernel(),a=K?K.query("actions").filter(function(x){return x.module===c.key&&!/Completed|Verified|Cancelled/.test(x.status)}):[];if(!a.length)return '<div class="option"><p>Action فعالی در Kernel برای این ماژول ثبت نشده است.</p></div>';return a.map(function(x){return '<div class="att"><span class="dot '+(/P0|P1/.test(x.priority)?"red":"amber")+'"></span><div style="flex:1"><h4>'+esc(x.title)+'</h4><p>'+esc(x.owner)+' · '+new Date(x.dueAt).toLocaleString("fa-IR")+'</p></div>'+st(x.status)+' <button class="btn sm" data-od="complete-action" data-id="'+x.id+'">تکمیل</button></div>'}).join("")}
 function renderOverview(c){
   return kpis(c.kpis)+
     '<div class="grid two"><div class="card panel"><div class="ph"><div><div class="pt">صف توجه عملیاتی</div><div class="ps">مواردی که از وضعیت عادی خارج شده‌اند</div></div></div>'+exceptionCards(c)+'</div>'+
@@ -44,7 +45,7 @@ function renderRules(c){
     '<div class="card panel"><div class="pt">Rule Matrix ماژول</div>'+table(["Event","Condition","Output","Notify"],c.rules.map(function(r){return [esc(r[0]),esc(r[1]),st(r[2]),esc(r[3])] }))+'</div></div>'+
     '<div class="card panel" style="margin-top:13px"><div class="pt">آخرین اجراهای Rule Engine</div>'+renderExecutions(c.key)+'</div>'
 }
-function renderExecutions(key){var a=state.executions.filter(function(x){return x.key===key}).slice(-6).reverse();if(!a.length)return '<div class="option"><p>هنوز Ruleی به‌صورت دستی اجرا نشده است.</p></div>';return a.map(function(x){return '<div class="att"><span class="dot '+(tone(x.output)==="critical"?"red":"amber")+'"></span><div style="flex:1"><h4>'+esc(x.event)+'</h4><p>'+esc(x.when)+' · '+esc(x.reason)+'</p></div>'+st(x.output)+'</div>'}).join("")}
+function renderExecutions(key){var K=kernel(),a=K?K.query("events").filter(function(x){return x.module===key}).slice(-6).reverse():[];if(!a.length)return '<div class="option"><p>هنوز Event پردازش‌شده‌ای برای این ماژول در Kernel نیست.</p></div>';return a.map(function(x){return '<div class="att"><span class="dot '+(tone(x.severity)==="critical"?"red":"amber")+'"></span><div style="flex:1"><h4>'+esc(x.type)+'</h4><p>'+new Date(x.updatedAt||x.createdAt).toLocaleString("fa-IR")+' · '+esc(x.context||"")+' · Occurrences: '+esc(x.occurrences||1)+'</p></div>'+st(x.severity)+'</div>'}).join("")}
 function renderDeps(c){
   return '<div class="card panel"><div class="pt">Dependency Graph</div><div class="ps">این ماژول مستقل نیست؛ تغییرات مهم باید اثر خود را در واحدهای مرتبط منتقل کنند.</div>'+c.dependencies.map(function(d){return '<div class="od-dep"><div><b>'+esc(c.title)+'</b><small>'+esc(d[0])+'</small></div><span>←</span><div><b>'+esc(d[1])+'</b><small>'+esc(d[2])+'</small></div></div>'}).join("")+'</div>'+
     '<div class="card panel" style="margin-top:13px"><div class="pt">Correlation Rules</div>'+c.correlations.map(function(x){return '<div class="option '+(x[2]==="Root"?"rec":"")+'"><p><b>'+esc(x[0])+'</b><br>'+esc(x[1])+' · '+esc(x[2])+'</p></div>'}).join("")+'</div>'
@@ -62,7 +63,7 @@ function renderModule(c){
 }
 function runRule(c,idx){
   var x=c.exceptions[idx],r=c.rules[idx%c.rules.length],when=new Date().toLocaleTimeString("fa-IR",{hour:"2-digit",minute:"2-digit"});
-  var out=r[2],exec={key:c.key,event:r[0],reason:r[1],output:out,when:when};state.executions.push(exec);save();
+  var out=r[2];
   var chain=["Event: "+r[0],"Validate ✓","Context: "+x[1],"Existing Response: "+x[4],"Owner: "+x[3],"Output: "+out];
   modal("اجرای Rule — "+c.title,'<div class="rules od-engine">'+chain.map(function(v,i){return '<span class="rn '+(i===chain.length-1?"active":"")+'">'+esc(v)+'</span>'+(i<chain.length-1?'<span class="arr">←</span>':'')}).join("")+'</div><div class="infogrid"><div class="info"><small>Severity</small><b>'+esc(x[2])+'</b></div><div class="info"><small>Owner</small><b>'+esc(x[3])+'</b></div><div class="info"><small>Existing Response</small><b>'+esc(x[4])+'</b></div><div class="info"><small>Engine Output</small><b>'+esc(out)+'</b></div></div><div class="option rec"><p>اعلان فقط زمانی ساخته می‌شود که Awareness ارزش مدیریتی داشته باشد؛ Action و Decision موجودیت جدا هستند.</p></div>','<button class="btn primary" data-od="close">بستن</button>');
   toast("Rule اجرا شد",out);
@@ -74,9 +75,9 @@ function newEvent(c){
   modal("ثبت Event — "+c.title,'<div class="form"><div class="field full"><label>Event Type</label><input id="od-ev" value="'+esc(c.key)+'.Exception"></div><div class="field"><label>Severity</label><select id="od-sev"><option>S2</option><option>S3</option><option>S4</option><option>S5</option></select></div><div class="field"><label>Impact</label><select id="od-imp"><option>I2</option><option>I3</option><option>I4</option><option>I5</option></select></div><div class="field full"><label>Context</label><textarea id="od-ctx">شرح رویداد و اثر عملیاتی</textarea></div></div>','<button class="btn primary" data-od="save-event" data-key="'+c.key+'">Validate و ارزیابی</button><button class="btn" data-od="close">انصراف</button>')
 }
 function val(id){var x=document.getElementById(id);return x?x.value:""}
-function saveAction(c){var a={id:"ACT-"+Math.floor(Math.random()*9000+1000),key:c.key,title:val("od-at")||"اقدام جدید",owner:val("od-ao"),due:val("od-ad"),result:val("od-ar"),status:"Assigned"};state.actions.unshift(a);save();closeModal();renderModule(c);toast("Action ثبت شد",a.id)}
-function saveEvent(c){var sev=val("od-sev"),imp=val("od-imp"),event=val("od-ev"),output=(sev==="S5"||imp==="I5")?"Emergency Alert + Case":(sev==="S4"||imp==="I4")?"Management Case + Manager Alert":"Action";state.executions.push({key:c.key,event:event,reason:val("od-ctx"),output:output,when:new Date().toLocaleTimeString("fa-IR",{hour:"2-digit",minute:"2-digit"})});save();closeModal();state.active[c.key]="rules";renderModule(c);toast("Event ارزیابی شد",output)}
-function completeAction(id){var a=state.actions.filter(function(x){return x.id===id})[0];if(a){a.status="Completed";save();var c=configs[a.key];if(c)renderModule(c);toast("Action تکمیل شد","برای Case بحرانی هنوز Verification لازم است")}}
+function saveAction(c){var K=kernel();if(!K){toast("Kernel در دسترس نیست");return}try{var dueText=val("od-ad"),dueMs=6*60*60*1000;var a=K.createManualAction({module:c.key,title:val("od-at")||"اقدام جدید",owner:val("od-ao"),dueMs:dueMs,expectedResult:val("od-ar"),priority:"P3"});closeModal();renderModule(c);toast("Action در Kernel ثبت شد",a.id)}catch(e){toast("ثبت Action ناموفق",e.message)}}
+function saveEvent(c){closeModal();state.active[c.key]="rules";save();renderModule(c);toast("Event برای پردازش به Management Kernel ارسال شد")}
+function completeAction(id){var K=kernel();if(!K)return;try{var a=K.completeAction(id,false);var c=a&&configs[a.module];if(c)renderModule(c);toast("Action در Kernel تکمیل شد","برای Case بحرانی هنوز Verification لازم است")}catch(e){toast("تکمیل Action ناموفق",e.message)}}
 
 var configs={
 production:{
