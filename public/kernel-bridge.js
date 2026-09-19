@@ -69,7 +69,7 @@ function moduleLiveCard(){
  root.appendChild(card)
 }
 function dashboardKernel(){
- var c=document.getElementById("content");if(!c||document.getElementById("mk-dashboard"))return;
+ var c=document.getElementById("content");if(!c||document.getElementById("mk-dashboard")||document.getElementById("kv2-dashboard"))return;
  var h=c.querySelector(".head h2");if(!h||h.textContent.trim()!=="مرکز فرمان مدیرعامل")return;
  var s=K.snapshot(),box=document.createElement("div");box.id="mk-dashboard";box.className="card panel";box.style.marginTop="13px";
  box.innerHTML='<div class="ph"><div><div class="pt">⬡ هسته یکپارچه مدیریت</div><div class="ps">Event → Rule → Correlation → Case → Decision/Action → Notification → SLA → Audit</div></div><button class="btn sm" data-mk="open">جزئیات</button></div><div class="grid rulegrid">'+[["Event فعال",s.events],["Case",s.cases],["Action",s.actions],["Decision",s.decisions],["Approval",s.approvals],["Notification",s.notifications]].map(function(x){return '<div class="card rcode"><b>'+x[1]+'</b><small>'+x[0]+'</small></div>'}).join("")+'</div>';
