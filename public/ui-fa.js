@@ -17,7 +17,21 @@ var exact={
 };
 
 var phrases=[
- [/Executive Management Operating System/g,"سامانه یکپارچه مدیریت اجرایی"],
+  [/Executive Management Operating System/g,"سامانه یکپارچه مدیریت اجرایی"],
+  [/آخرین تغییرات قابل Audit/g,"آخرین تغییرات ثبت‌شده"],
+  [/Action Store مرکزی/g,"مخزن مرکزی اقدامات"],
+  [/Caseهای واقعی/g,"پرونده‌های مدیریتی واقعی"],
+  [/Caseهای مرکزی/g,"پرونده‌های مدیریتی مرکزی"],
+  [/Decisionهای مرکزی/g,"تصمیم‌های مرکزی"],
+  [/Actionهای مرتبط/g,"اقدام‌های مرتبط"],
+  [/Caseهای مرتبط/g,"پرونده‌های مدیریتی مرتبط"],
+  [/Projection مستقیم/g,"نمای مستقیم"],
+  [/Severity و Priority/g,"شدت و اولویت"],
+  [/On Track/g,"طبق برنامه"],
+  [/kernel\.boot/g,"راه‌اندازی هسته مدیریت"],
+  [/session\.switch/g,"تغییر نقش فعال"],
+  [/notification\.create/g,"ثبت اعلان"],
+  [/v2 initialized/g,"نسخه ۲ راه‌اندازی شد"],
  [/Management Kernel/g,"هسته یکپارچه مدیریت"],
  [/Kernel v2/g,"هسته مدیریت نسخه ۲"],
  [/Single Source of Truth/g,"منبع واحد و معتبر اطلاعات"],
@@ -103,7 +117,18 @@ var phrases=[
  [/\bOwner\b/g,"مسئول"],
  [/\bSource\b/g,"منبع"],
  [/\bRole\b/g,"نقش"],
- [/\bScope\b/g,"دامنه دسترسی"]
+  [/\bScope\b/g,"دامنه دسترسی"]
+  ,[/\bCEO\b/g,"مدیرعامل"]
+  ,[/\borganization\b/g,"کل سازمان"]
+  ,[/\binventory\b/g,"انبار و لجستیک"]
+  ,[/\bProjection\b/g,"نمای زنده"]
+  ,[/\bSeverity\b/g,"شدت"]
+  ,[/\bPriority\b/g,"اولویت"]
+  ,[/\bStore\b/g,"مخزن اطلاعات"]
+  ,[/\binitialized\b/g,"راه‌اندازی شد"]
+  ,[/\bHSE\b/g,"بهداشت، ایمنی و محیط‌زیست"]
+  ,[/پرونده مدیریتیهای/g,"پرونده‌های مدیریتی"]
+  ,[/اعلانهای/g,"اعلان‌های"]
 ];
 
 function translate(value){
