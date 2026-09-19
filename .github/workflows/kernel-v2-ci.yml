@@ -8,6 +8,7 @@ on:
       - "public/management-kernel-v2.js"
       - "public/kernel-views-v2.js"
       - "public/kernel-ai-v2.js"
+      - "public/module-records-v2.js"
       - "public/kernel-bridge.js"
       - "public/ops-depth.js"
       - "public/hr-fix.js"
@@ -37,6 +38,9 @@ jobs:
 
       - name: Syntax check kernel AI
         run: node --check public/kernel-ai-v2.js
+
+      - name: Syntax check business record layer
+        run: node --check public/module-records-v2.js
 
       - name: Syntax check bridges
         run: |
