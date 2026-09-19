@@ -1,6 +1,6 @@
 (function(){
 "use strict";
-var KEY="ard_management_kernel_v2";
+var KEY="ard_management_kernel_v2";\nvar SCHEMA_VERSION=3;
 function now(){return Date.now()}
 function uid(prefix){return prefix+"-"+Math.floor(Math.random()*900000+100000)}
 function clone(x){return JSON.parse(JSON.stringify(x))}
@@ -11,7 +11,7 @@ function riskLevel(p,i){var n=(+String(p).replace(/\D/g,"")||3)*(+String(i).repl
 function roleLevel(r){return {Operator:1,Expert:2,Supervisor:3,Manager:4,Executive:5,CEO:6,Board:7,Auditor:3}[r]||1}
 function mkSeed(){
  return {
-  version:2,
+  version:2,\n  schemaVersion:SCHEMA_VERSION,
   config:{
    thresholds:{ceoPurchase:500000000,executivePurchase:250000000,criticalDowntimeMin:30,highFinancialExposure:1000000000},
    sla:{actionDefaultMs:6*3600000,decisionP1Ms:3600000,decisionP2Ms:4*3600000,approvalMs:8*3600000,ackP0Ms:15*60000,ackP1Ms:60*60000},
@@ -77,26 +77,56 @@ function mkSeed(){
   scenarioSeeded:false
  };
 }
-function migrate(old,s){
+function mergeDefaults(target,defaults){
+ if(Array.isArray(defaults))return Array.isArray(target)?target:clone(defaults);
+ if(defaults&&typeof defaults==="object"){
+  var out=target&&typeof target==="object"&&!Array.isArray(target)?target:{};
+  Object.keys(defaults).forEach(function(k){out[k]=mergeDefaults(out[k],defaults[k])});
+  return out;
+ }
+ return target===undefined||target===null?defaults:target;
+}
+function migrateState(raw){
+ var seed=mkSeed();
+ if(!raw)return seed;
+ var backupKey=KEY+":backup:"+Date.now();
  try{
-  if(!old)return s;
-  ["events","cases","actions","decisions","notifications","risks","links","audit"].forEach(function(k){
-   if(Array.isArray(old[k])&&old[k].length&&!s[k].length)s[k]=clone(old[k]);
-  });
- }catch(e){}
- return s
+  localStorage.setItem(backupKey,JSON.stringify(raw));
+  var out=clone(raw);
+  var from=Number(out.schemaVersion||out.version||1);
+  if(!out.master&&out.entities)out.master={departments:clone(seed.master.departments),entities:clone(out.entities)};
+  out=mergeDefaults(out,seed);
+  out.version=2;
+  out.schemaVersion=SCHEMA_VERSION;
+  out.records=out.records||{};
+  Object.keys(seed.records).forEach(function(k){if(!Array.isArray(out.records[k]))out.records[k]=clone(seed.records[k]||[])});
+  out.master=out.master||clone(seed.master);
+  out.master.entities=out.master.entities||{};
+  Object.keys(seed.master.entities).forEach(function(id){if(!out.master.entities[id])out.master.entities[id]=clone(seed.master.entities[id])});
+  ["events","eventOccurrences","cases","actions","decisions","approvals","notifications","risks","links","audit","problems","delegations","acceptance"].forEach(function(k){if(!Array.isArray(out[k]))out[k]=clone(seed[k]||[])});
+  out.seq=mergeDefaults(out.seq,seed.seq);
+  out.config=mergeDefaults(out.config,seed.config);
+  out.session=mergeDefaults(out.session,seed.session);
+  out.users=mergeDefaults(out.users,seed.users);
+  if(from<SCHEMA_VERSION){
+   out.audit.unshift({id:uid("AUD"),at:now(),actorId:(out.session&&out.session.userId)||"SYSTEM",kind:"schema.migrate",entityId:"KERNEL",message:"State schema migrated",meta:{from:from,to:SCHEMA_VERSION}});
+  }
+  return out;
+ }catch(e){
+  console.error("[ManagementKernel] migration failed",e);
+  return seed;
+ }
 }
 var db;
 try{
- db=JSON.parse(localStorage.getItem(KEY)||"null");
- if(!db){
-  var old=JSON.parse(localStorage.getItem("ard_management_kernel_v1")||"null");
-  db=migrate(old,mkSeed());
- }
-}catch(e){db=mkSeed()}
-db.records=db.records||{};
-["partRequests","inventoryMovements","purchaseRequests","goodsReceipts","financialCommitments","hrPerformance","hrTraining","hrCompetency","hrExperience"].forEach(function(k){if(!Array.isArray(db.records[k]))db.records[k]=clone(mkSeed().records[k]||[])});
-["EMP-41","EMP-57","EMP-22"].forEach(function(id){if(!db.master.entities[id])db.master.entities[id]=clone(mkSeed().master.entities[id])});
+ var raw=JSON.parse(localStorage.getItem(KEY)||"null");
+ if(!raw)raw=JSON.parse(localStorage.getItem("ard_management_kernel_v1")||"null");
+ db=migrateState(raw);
+}catch(e){
+ console.error("[ManagementKernel] state load failed",e);
+ db=mkSeed();
+}
+localStorage.setItem(KEY,JSON.stringify(db));
 function persist(){
  localStorage.setItem(KEY,JSON.stringify(db));
  window.dispatchEvent(new CustomEvent("management-kernel:update",{detail:snapshot()}));
@@ -609,7 +639,9 @@ function runAcceptanceSuite(){
 }
 function getStore(){return clone(db)}
 window.ManagementKernel={
- version:2,emitEvent:emitEvent,queryBusinessRecords:queryBusinessRecords,upsertBusinessRecord:upsertBusinessRecord,removeBusinessRecord:removeBusinessRecord,requestPart:requestPart,progressPurchase:progressPurchase,createManualAction:createManualAction,resolveDecision:resolveDecision,transitionApproval:transitionApproval,completeAction:completeAction,verifyCase:verifyCase,closeCase:closeCase,acknowledge:acknowledgeNotification,tick:tick,snapshot:snapshot,getStore:getStore,reset:reset,runReferenceScenario:runReferenceScenario,runAcceptanceSuite:runAcceptanceSuite,setSession:setSession,currentUser:function(){return clone(currentUser())},can:can,query:query,upsertEntity:upsertEntity,addDelegation:addDelegation,findLinks:findLinks,link:link
+ version:2,schemaVersion:SCHEMA_VERSION,emitEvent:emitEvent,queryBusinessRecords:queryBusinessRecords,upsertBusinessRecord:upsertBusinessRecord,removeBusinessRecord:removeBusinessRecord,requestPart:requestPart,progressPurchase:progressPurchase,createManualAction:createManualAction,resolveDecision:resolveDecision,transitionApproval:transitionApproval,completeAction:completeAction,verifyCase:verifyCase,closeCase:closeCase,acknowledge:acknowledgeNotification,tick:tick,snapshot:snapshot,getStore:getStore,reset:reset,runReferenceScenario:runReferenceScenario,runAcceptanceSuite:runAcceptanceSuite,setSession:setSession,currentUser:function(){return clone(currentUser())},can:can,query:query,upsertEntity:upsertEntity,addDelegation:addDelegation,findLinks:findLinks,link:link
 };
-audit("kernel.boot","KERNEL","Management Kernel v2 initialized",{version:2});persist();
+audit("kernel.boot","KERNEL","Management Kernel v2 initialized",{version:2,schemaVersion:SCHEMA_VERSION});persist();
+window.__MANAGEMENT_KERNEL_READY__=true;
+window.dispatchEvent(new CustomEvent("management-kernel:ready",{detail:{kernel:window.ManagementKernel,schemaVersion:SCHEMA_VERSION}}));
 })();
