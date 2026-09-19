@@ -39,8 +39,36 @@ function mkSeed(){
     "PROD-SHIFT-829":{id:"PROD-SHIFT-829",type:"production_shift",name:"شیفت عصر",module:"production",plan:150,actual:125,downtimeMin:32,status:"Completed",sensitivity:"internal"},
     "B-2405":{id:"B-2405",type:"batch",name:"Batch B-2405",module:"quality",status:"Hold",shipmentIds:["ORD-91"],sensitivity:"internal"},
     "ORD-91":{id:"ORD-91",type:"sales_order",name:"ORD-91",module:"sales",status:"Blocked",batchId:"B-2405",sensitivity:"confidential"},
-    "POS-14":{id:"POS-14",type:"position",name:"مدیر شیفت تولید",module:"hr",critical:true,readyNow:0,sensitivity:"restricted"}
+    "POS-14":{id:"POS-14",type:"position",name:"مدیر شیفت تولید",module:"hr",critical:true,readyNow:0,sensitivity:"restricted"},
+    "EMP-41":{id:"EMP-41",type:"employee",name:"حسین مرادی",module:"hr",department:"HR",operationalDepartment:"Production",sensitivity:"restricted"},
+    "EMP-57":{id:"EMP-57",type:"employee",name:"مهدی رضایی",module:"hr",department:"HR",operationalDepartment:"Production",sensitivity:"restricted"},
+    "EMP-22":{id:"EMP-22",type:"employee",name:"علی موسوی",module:"hr",department:"HR",operationalDepartment:"Production",sensitivity:"restricted"}
    }
+  },
+  records:{
+   hrPerformance:[
+    {id:"PERF-Q2-41",kind:"hrPerformance",module:"hr",department:"HR",employeeId:"EMP-41",name:"حسین مرادی",unit:"تولید",period:"۱۴۰۵-Q2",kpi:"تحقق برنامه شیفت",target:95,actual:88,score:88,status:"نیازمند بهبود",sensitivity:"restricted"},
+    {id:"PERF-Q2-57",kind:"hrPerformance",module:"hr",department:"HR",employeeId:"EMP-57",name:"مهدی رضایی",unit:"تولید",period:"۱۴۰۵-Q2",kpi:"پایداری عملیات شیفت",target:92,actual:84,score:84,status:"قابل قبول",sensitivity:"restricted"},
+    {id:"PERF-Q2-22",kind:"hrPerformance",module:"hr",department:"HR",employeeId:"EMP-22",name:"علی موسوی",unit:"تولید",period:"۱۴۰۵-Q2",kpi:"کیفیت اجرای برنامه",target:94,actual:91,score:91,status:"خوب",sensitivity:"restricted"}
+   ],
+   hrTraining:[
+    {id:"TR-41",kind:"hrTraining",module:"hr",department:"HR",employeeId:"EMP-41",name:"حسین مرادی",need:"رهبری تیم",course:"رهبری تیم و مدیریت شیفت",pre:62,post:82,impact:78,status:"اثربخش",sensitivity:"restricted"},
+    {id:"TR-57",kind:"hrTraining",module:"hr",department:"HR",employeeId:"EMP-57",name:"مهدی رضایی",need:"تصمیم‌گیری عملیاتی",course:"تصمیم‌گیری در عملیات",pre:58,post:76,impact:72,status:"نیازمند پیگیری",sensitivity:"restricted"},
+    {id:"TR-22",kind:"hrTraining",module:"hr",department:"HR",employeeId:"EMP-22",name:"علی موسوی",need:"مدیریت شیفت",course:"مدیریت پیشرفته شیفت",pre:64,post:88,impact:81,status:"اثربخش",sensitivity:"restricted"}
+   ],
+   hrCompetency:[
+    {id:"COMP-41-L",kind:"hrCompetency",module:"hr",department:"HR",employeeId:"EMP-41",name:"حسین مرادی",role:"مدیر شیفت تولید",competency:"رهبری تیم",required:85,actual:74,sensitivity:"restricted"},
+    {id:"COMP-41-D",kind:"hrCompetency",module:"hr",department:"HR",employeeId:"EMP-41",name:"حسین مرادی",role:"مدیر شیفت تولید",competency:"تصمیم‌گیری",required:82,actual:76,sensitivity:"restricted"},
+    {id:"COMP-57-L",kind:"hrCompetency",module:"hr",department:"HR",employeeId:"EMP-57",name:"مهدی رضایی",role:"مدیر شیفت تولید",competency:"رهبری تیم",required:85,actual:79,sensitivity:"restricted"},
+    {id:"COMP-57-D",kind:"hrCompetency",module:"hr",department:"HR",employeeId:"EMP-57",name:"مهدی رضایی",role:"مدیر شیفت تولید",competency:"تصمیم‌گیری",required:82,actual:75,sensitivity:"restricted"},
+    {id:"COMP-22-L",kind:"hrCompetency",module:"hr",department:"HR",employeeId:"EMP-22",name:"علی موسوی",role:"مدیر شیفت تولید",competency:"رهبری تیم",required:85,actual:68,sensitivity:"restricted"},
+    {id:"COMP-22-D",kind:"hrCompetency",module:"hr",department:"HR",employeeId:"EMP-22",name:"علی موسوی",role:"مدیر شیفت تولید",competency:"تصمیم‌گیری",required:82,actual:72,sensitivity:"restricted"}
+   ],
+   hrExperience:[
+    {id:"EXP-41",kind:"hrExperience",module:"hr",department:"HR",employeeId:"EMP-41",score:91,sensitivity:"restricted"},
+    {id:"EXP-57",kind:"hrExperience",module:"hr",department:"HR",employeeId:"EMP-57",score:73,sensitivity:"restricted"},
+    {id:"EXP-22",kind:"hrExperience",module:"hr",department:"HR",employeeId:"EMP-22",score:67,sensitivity:"restricted"}
+   ]
   },
   events:[],eventOccurrences:[],cases:[],actions:[],decisions:[],approvals:[],notifications:[],risks:[],links:[],audit:[],problems:[],
   seq:{case:300,action:1000,decision:200,approval:400,notification:100,problem:50},
@@ -65,6 +93,9 @@ try{
   db=migrate(old,mkSeed());
  }
 }catch(e){db=mkSeed()}
+db.records=db.records||{};
+["hrPerformance","hrTraining","hrCompetency","hrExperience"].forEach(function(k){if(!Array.isArray(db.records[k]))db.records[k]=clone(mkSeed().records[k])});
+["EMP-41","EMP-57","EMP-22"].forEach(function(id){if(!db.master.entities[id])db.master.entities[id]=clone(mkSeed().master.entities[id])});
 function persist(){
  localStorage.setItem(KEY,JSON.stringify(db));
  window.dispatchEvent(new CustomEvent("management-kernel:update",{detail:snapshot()}));
@@ -296,6 +327,24 @@ function ruleProject(ev,input,ctx){var c=createCase({key:"project:"+String(ev.en
 function ruleFinance(ev,input,ctx){var c=createCase({key:"finance:"+String(ev.entityId||ev.id),title:"ریسک نقدینگی",module:"finance",severity:"High",impact:"I4",owner:"مدیر مالی",ownerUserId:"USR-FIN",accountable:"مدیرعامل",eventId:ev.id,sensitivity:"confidential"});var a=createAction({key:"cash-plan:"+c.key,caseId:c.id,title:"سناریوی اصلاح Cash Forecast",module:"finance",owner:"مدیر مالی",ownerUserId:"USR-FIN",dueMs:4*3600000,expectedResult:"Gap + Funding Options",priority:"P2",sensitivity:"confidential"});notify({caseId:c.id,purpose:"Know",priority:"P2",title:"ریسک نقدینگی نیازمند پایش",recipient:"مدیرعامل",reason:"Major financial exposure",sensitivity:"confidential"});return {event:ev,case:c,action:a,output:"Finance Case + Executive Awareness"}}
 function rulePolicyException(ev,input,ctx){var c=createCase({key:"policy:"+String(ev.entityId||ev.id),title:"استثنای سیاست خرید",module:"procurement",severity:"High",impact:"I3",owner:"مدیر تدارکات",ownerUserId:"USR-PROC",accountable:"معاون عملیات",eventId:ev.id});var d=createDecision({key:"policy-decision:"+c.key,caseId:c.id,title:"تصمیم درباره استثنای سیاست خرید",owner:"معاون عملیات",ownerUserId:"USR-OPS",authority:"A4",requiredRole:"Executive",reason:ev.context||"Policy Exception",options:[{label:"Approve Exception"},{label:"Return to Policy"}],recommendation:"فقط در صورت توجیه اثر عملیاتی",priority:"P2"});notify({caseId:c.id,purpose:"Decide",priority:"P2",title:d.title,recipient:"معاون عملیات",reason:"Policy Exception"});return {event:ev,case:c,decision:d,output:"Decision"}}
 function ruleGeneric(ev,input,ctx){if(sevRank(ev.severity)>=4){var c=createCase({key:"generic:"+ev.dedupeKey,title:ev.context||ev.type,module:ev.module,severity:ev.severity,impact:ev.impact,owner:"مدیر واحد",eventId:ev.id});var a=createAction({key:"generic-action:"+c.key,caseId:c.id,title:"اقدام اصلاحی برای "+ev.type,module:ev.module,owner:"مدیر واحد",expectedResult:"Exception Resolved",priority:"P2"});return {event:ev,case:c,action:a,output:"Case + Action"}}var a2=createAction({key:"event-action:"+ev.dedupeKey,title:"بررسی "+ev.type,module:ev.module,owner:"مسئول واحد",expectedResult:"Review Result",priority:"P3"});return {event:ev,action:a2,output:"Action"}}
+function queryBusinessRecords(kind,filter){
+ var arr=clone((db.records&&db.records[kind])||[]),u=currentUser();
+ return arr.filter(function(x){return can("read","business_record",x,u)&&(typeof filter!=="function"||filter(x))});
+}
+function upsertBusinessRecord(kind,record){
+ record=clone(record||{});record.kind=kind;record.module=record.module||"hr";record.department=record.department||resourceDepartment(record)||"HR";record.sensitivity=record.sensitivity||"restricted";
+ requirePerm("write","business_record",record);
+ if(!record.id)record.id=(kind==="hrPerformance"?"PERF":kind==="hrTraining"?"TR":kind==="hrCompetency"?"COMP":"REC")+"-"+Math.floor(Math.random()*900000+100000);
+ db.records[kind]=db.records[kind]||[];
+ var i=db.records[kind].findIndex(function(x){return x.id===record.id});
+ record.updatedAt=now();if(i>=0)db.records[kind][i]=Object.assign({},db.records[kind][i],record);else{record.createdAt=now();db.records[kind].push(record)}
+ audit("record.upsert",record.id,kind+" رکورد بروزرسانی شد",{kind:kind,employeeId:record.employeeId||null});
+ persist();return clone(record);
+}
+function removeBusinessRecord(kind,id){
+ var list=db.records[kind]||[],rec=list.find(function(x){return x.id===id});if(!rec)return false;requirePerm("write","business_record",rec);
+ db.records[kind]=list.filter(function(x){return x.id!==id});audit("record.remove",id,kind+" رکورد حذف شد");persist();return true;
+}
 function createManualAction(input){
  input=input||{};
  var rec={module:input.module||"general",sensitivity:input.sensitivity||"internal"};
@@ -407,6 +456,8 @@ function runAcceptanceSuite(){
   test("HSE severe creates P0 CEO notification",function(){var r=emitEvent({type:"HSE.Incident",module:"hse",entityId:"HSE-X",severity:"S5",impact:"I5",context:"Severe"});return db.notifications.some(function(n){return n.caseId===r.case.id&&n.priority==="P0"&&n.recipient==="مدیرعامل"})});
   test("SLA creates escalation",function(){tick(12*3600000);return db.notifications.some(function(n){return n.purpose==="Escalate"&&n.reason==="ESC_SLA"})});
   test("Restricted HR hidden from procurement expert",function(){setSession("USR-PROC-EX");return query("cases").every(function(c){return c.module!=="hr"||c.sensitivity!=="restricted"})});
+  test("Restricted HR records hidden from procurement expert",function(){setSession("USR-PROC-EX");return queryBusinessRecords("hrPerformance").length===0});
+  test("HR manager can update HR source record",function(){setSession("USR-HR");var r=upsertBusinessRecord("hrPerformance",{id:"PERF-TEST",employeeId:"EMP-41",name:"حسین مرادی",period:"TEST",kpi:"Test",target:90,actual:91,score:91});return r.id==="PERF-TEST"&&queryBusinessRecords("hrPerformance").some(function(x){return x.id==="PERF-TEST"})});
  }finally{
   var pass=results.filter(function(x){return x.ok}).length;
   db=original;db.acceptance=results;db.session.userId="USR-CEO";audit("acceptance.run","KERNEL","Acceptance Suite: "+pass+"/"+results.length,{results:results});persist();
@@ -415,7 +466,7 @@ function runAcceptanceSuite(){
 }
 function getStore(){return clone(db)}
 window.ManagementKernel={
- version:2,emitEvent:emitEvent,createManualAction:createManualAction,resolveDecision:resolveDecision,transitionApproval:transitionApproval,completeAction:completeAction,verifyCase:verifyCase,closeCase:closeCase,acknowledge:acknowledgeNotification,tick:tick,snapshot:snapshot,getStore:getStore,reset:reset,runReferenceScenario:runReferenceScenario,runAcceptanceSuite:runAcceptanceSuite,setSession:setSession,currentUser:function(){return clone(currentUser())},can:can,query:query,upsertEntity:upsertEntity,addDelegation:addDelegation,findLinks:findLinks,link:link
+ version:2,emitEvent:emitEvent,queryBusinessRecords:queryBusinessRecords,upsertBusinessRecord:upsertBusinessRecord,removeBusinessRecord:removeBusinessRecord,createManualAction:createManualAction,resolveDecision:resolveDecision,transitionApproval:transitionApproval,completeAction:completeAction,verifyCase:verifyCase,closeCase:closeCase,acknowledge:acknowledgeNotification,tick:tick,snapshot:snapshot,getStore:getStore,reset:reset,runReferenceScenario:runReferenceScenario,runAcceptanceSuite:runAcceptanceSuite,setSession:setSession,currentUser:function(){return clone(currentUser())},can:can,query:query,upsertEntity:upsertEntity,addDelegation:addDelegation,findLinks:findLinks,link:link
 };
 audit("kernel.boot","KERNEL","Management Kernel v2 initialized",{version:2});persist();
 })();
