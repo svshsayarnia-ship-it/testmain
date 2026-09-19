@@ -5,6 +5,7 @@ const html = read("public/index.html");
 const app = read("public/ard-v2.js");
 const views = read("public/kernel-views-v2.js");
 const css = read("public/ard-v2.css");
+const faUi = read("public/ui-fa.js");
 
 const checks = [
   ["Kernel loads before UI", html.indexOf("management-kernel-v2.js") < html.indexOf("ard-v2.js")],
@@ -16,6 +17,9 @@ const checks = [
   ["Navigation releases stale Kernel view ownership", /removeAttribute\("data-kv2"\)/.test(app)],
   ["Mobile header can shrink safely", /\.search\{[^}]*min-width:0/.test(css) && /@media\(max-width:520px\)/.test(css)],
   ["Mobile sidebar has overlay", /@media\(max-width:820px\)[\s\S]*\.sidebar\.open/.test(css) && /\.overlay/.test(css)]
+  ,["Vazirmatn is bundled and applied", /@font-face/.test(css) && /Vazirmatn\.woff2/.test(css) && fs.existsSync(new URL("../public/fonts/Vazirmatn.woff2", import.meta.url))]
+  ,["Persian UI humanizer loads last", html.indexOf("ui-fa.js") > html.indexOf("kernel-ai-v2.js")]
+  ,["Core management terms have human Persian labels", ["رویداد","پرونده مدیریتی","اقدام","تصمیم","تأیید فرایندی","مهلت انجام","دامنه دسترسی"].every(term => faUi.includes(term))]
 ];
 
 for (const [name, ok] of checks) console.log(`${ok ? "PASS" : "FAIL"}: ${name}`);
