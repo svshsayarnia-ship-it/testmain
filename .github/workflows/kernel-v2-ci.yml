@@ -6,6 +6,7 @@ on:
       - ard-jonoub-executive-v2
     paths:
       - "public/management-kernel-v2.js"
+      - "public/management-kernel.js"
       - "public/kernel-views-v2.js"
       - "public/kernel-ai-v2.js"
       - "public/module-records-v2.js"
@@ -14,10 +15,12 @@ on:
       - "public/hr-fix.js"
       - "public/index.html"
       - "public/ard-v2.css"
-      - "public/ui-fa.js"\n      - "api/coach.js"\n      - "tests/audit-regression.mjs"\n      - "public/management-kernel.js"
+      - "public/ui-fa.js"
       - "public/fonts/**"
+      - "api/coach.js"
       - "tests/kernel-v2-smoke.mjs"
       - "tests/ui-contract.mjs"
+      - "tests/audit-regression.mjs"
       - ".github/workflows/kernel-v2-ci.yml"
   workflow_dispatch:
 
@@ -46,14 +49,21 @@ jobs:
       - name: Syntax check business record layer
         run: node --check public/module-records-v2.js
 
-      - name: Syntax check bridges
+      - name: Syntax check bridges and i18n
         run: |
           node --check public/kernel-bridge.js
           node --check public/ops-depth.js
           node --check public/hr-fix.js
+          node --check public/ui-fa.js
+
+      - name: Syntax check coach API
+        run: node --check api/coach.js
 
       - name: Run architecture acceptance suite
         run: node tests/kernel-v2-smoke.mjs
+
+      - name: Run audit regression guards
+        run: node tests/audit-regression.mjs
 
       - name: Run UI and mobile contract suite
         run: node tests/ui-contract.mjs
