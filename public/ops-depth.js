@@ -17,7 +17,9 @@ function closeModal(){var m=document.getElementById("modal");if(m)m.innerHTML=""
 function table(headers,rows){return '<div class="tablewrap"><table class="tbl"><thead><tr>'+headers.map(function(h){return '<th>'+h+'</th>'}).join("")+'</tr></thead><tbody>'+rows.map(function(r){return '<tr>'+r.map(function(c){return '<td>'+c+'</td>'}).join("")+'</tr>'}).join("")+'</tbody></table></div>'}
 function kpis(items){return '<div class="grid kpis od-kpis">'+items.map(function(x,i){return '<div class="card kpi '+(x[3]||"")+'"><div class="kico">'+(["◉","◆","✓","⚠"][i%4])+'</div><div><div class="kl">'+esc(x[0])+'</div><div class="kv">'+esc(x[1])+'</div><div class="kf">'+esc(x[2]||"")+'</div></div></div>'}).join("")+'</div>'}
 function flow(items){return '<div class="flow od-flow">'+items.map(function(x,i){return '<span class="step '+(i<2?"done":i===2?"active":"")+'">'+esc(x)+'</span>'+(i<items.length-1?'<span>←</span>':'')}).join("")+'</div>'}
-function head(c){return '<div class="head"><div><h2>'+esc(c.title)+'</h2><p>'+esc(c.subtitle)+'</p></div><div class="acts"><button class="btn" data-od="module-action" data-key="'+c.key+'">+ اقدام</button><button class="btn primary" data-od="new-event" data-key="'+c.key+'">ثبت Event</button></div></div>'}
+function hasCentralRecords(c){return !!(window.ModuleRecordsV2&&window.ModuleRecordsV2.modules&&window.ModuleRecordsV2.modules[c.key])}
+function recordTable(c){return hasCentralRecords(c)?window.ModuleRecordsV2.renderTable(c.key):table(c.records[0],c.records[1].map(function(r){return r.map(function(v){return esc(v)})}))}
+function head(c){return '<div class="head"><div><h2>'+esc(c.title)+'</h2><p>'+esc(c.subtitle)+'</p></div><div class="acts">'+(hasCentralRecords(c)?'<button class="btn primary" data-mrv2="new" data-key="'+c.key+'">+ ثبت داده عملیاتی</button>':'')+'<button class="btn" data-od="module-action" data-key="'+c.key+'">+ اقدام</button><button class="btn" data-od="new-event" data-key="'+c.key+'">Event دستی</button></div></div>'}
 function tabs(c){var a=state.active[c.key]||"overview",items=[["overview","نمای کلی"],["ops","عملیات"],["flow","فرایند و کنترل"],["rules","Exception / Rule"],["deps","ارتباطات"],["reports","KPI و گزارش"]];return '<div class="tabs od-tabs">'+items.map(function(x){return '<button class="tab '+(a===x[0]?"active":"")+'" data-od="tab" data-key="'+c.key+'" data-tab="'+x[0]+'">'+x[1]+'</button>'}).join("")+'</div>'}
 function areaCards(c){return '<div class="grid od-areas">'+c.areas.map(function(a){return '<div class="card panel od-area"><div class="pt">'+esc(a[0])+'</div><div class="ps">'+esc(a[1])+'</div><div class="meta">'+chip("Owner: "+a[2])+chip("Source: "+a[3])+'</div></div>'}).join("")+'</div>'}
 function exceptionCards(c){return c.exceptions.map(function(x,i){return '<div class="att od-ex"><span class="dot '+(tone(x[2])==="critical"?"red":"amber")+'"></span><div style="flex:1"><h4>'+esc(x[0])+'</h4><p>'+esc(x[1])+'</p><div class="meta">'+chip(x[2])+chip("Owner: "+x[3])+chip(x[4])+'</div></div><button class="btn sm" data-od="run-rule" data-key="'+c.key+'" data-idx="'+i+'">اجرای Rule</button></div>'}).join("")}
@@ -27,11 +29,11 @@ function renderOverview(c){
     '<div class="grid two"><div class="card panel"><div class="ph"><div><div class="pt">صف توجه عملیاتی</div><div class="ps">مواردی که از وضعیت عادی خارج شده‌اند</div></div></div>'+exceptionCards(c)+'</div>'+
     '<div class="card panel"><div class="pt">معماری عملیاتی ماژول</div><div class="ps">هر زیرحوزه Owner و Source مشخص دارد.</div>'+areaCards(c)+'</div></div>'+
     '<div class="card panel" style="margin-top:13px"><div class="pt">جریان اصلی</div><div class="ps">'+esc(c.flowDesc)+'</div>'+flow(c.process)+'</div>'+
-    '<div class="card panel" style="margin-top:13px"><div class="ph"><div><div class="pt">رکوردهای عملیاتی</div><div class="ps">نمونه داده مرتبط با فرایند واقعی ماژول</div></div></div>'+table(c.records[0],c.records[1].map(function(r){return r.map(function(v,j){return j===r.length-1 && /Critical|High|هشدار|معوق|باز|Hold|ریسک/.test(String(v))?st(v):esc(v)})}))+'</div>'
+    '<div class="card panel" style="margin-top:13px"><div class="ph"><div><div class="pt">رکوردهای عملیاتی</div><div class="ps">'+(hasCentralRecords(c)?'Source: Management Kernel Business Record Store · تغییر داده → Event خودکار':'داده نمایشی')+'</div></div>'+(hasCentralRecords(c)?'<button class="btn sm" data-mrv2="new" data-key="'+c.key+'">+ رکورد</button>':'')+'</div>'+recordTable(c)+'</div>'
 }
 function renderOps(c){
   return '<div class="card panel"><div class="ph"><div><div class="pt">زیرماژول‌ها و مسئولیت داده</div><div class="ps">ثبت داده فقط در Source اصلی؛ استفاده در سایر ماژول‌ها به‌صورت Read</div></div></div>'+areaCards(c)+'</div>'+
-    '<div class="card panel" style="margin-top:13px"><div class="pt">رکوردها و عملیات جاری</div>'+table(c.records[0],c.records[1].map(function(r){return r.map(function(v){return esc(v)})}))+'</div>'+
+    '<div class="card panel" style="margin-top:13px"><div class="ph"><div><div class="pt">رکوردها و عملیات جاری</div><div class="ps">'+(hasCentralRecords(c)?'Single Source of Truth: Kernel':'Legacy View')+'</div></div>'+(hasCentralRecords(c)?'<button class="btn primary sm" data-mrv2="new" data-key="'+c.key+'">+ ثبت داده</button>':'')+'</div>'+recordTable(c)+'</div>'+
     '<div class="card panel" style="margin-top:13px"><div class="ph"><div><div class="pt">اقدامات ماژول</div><div class="ps">Action باید Owner + Deadline + Expected Result داشته باشد.</div></div><button class="btn primary" data-od="module-action" data-key="'+c.key+'">+ اقدام جدید</button></div>'+actionList(c)+'</div>'
 }
 function renderFlow(c){
@@ -398,4 +400,9 @@ function enhance(){
 }
 var content=document.getElementById("content");
 if(content){new MutationObserver(enhance).observe(content,{childList:true,subtree:false});setTimeout(enhance,0)}
+if(window.ModuleRecordsV2){
+ window.ModuleRecordsV2.onSaved=function(key){
+  var cfg=configs[key];if(cfg)renderModule(cfg);
+ };
+}
 })();
