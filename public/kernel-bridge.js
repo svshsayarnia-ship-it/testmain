@@ -75,7 +75,7 @@ function init(K){
   });
   observer.observe(modal,{childList:true,subtree:true});
   observer.takeRecords();
-  var form=modal.querySelector(".form");if(form){var ev=new MutationEvent();observer.disconnect();injectEntityFieldImmediate(key,form)}
+  var form=modal.querySelector(".form");if(form){observer.disconnect();injectEntityFieldImmediate(key,form)}
   setTimeout(function(){observer.disconnect()},1500);
  }
  function injectEntityFieldImmediate(key,form){
