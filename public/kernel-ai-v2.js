@@ -19,7 +19,7 @@ function sanitizeHtml(html){
   var tpl=document.createElement("template");
   tpl.innerHTML=String(html||"");
   var allowed={DIV:1,P:1,B:1,SMALL:1,SPAN:1,BUTTON:1,BR:1};
-  var allowedAttrs={"class":1,"data-kai-id":1};
+  var allowedAttrs={"class":1,"data-kai-id":1,"data-kai":1};
   Array.from(tpl.content.querySelectorAll("*")).forEach(function(el){
     if(!allowed[el.tagName]){el.replaceWith(document.createTextNode(el.textContent||""));return}
     Array.from(el.attributes).forEach(function(a){
