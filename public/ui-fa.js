@@ -9,6 +9,7 @@ var exact={
  "Overdue":"از مهلت گذشته","Expired":"منقضی‌شده","Hold":"متوقف برای بررسی","Released":"آزادشده","Ready":"آماده","Failed":"ناموفق",
  "Decide":"نیازمند تصمیم","Escalate":"ارجاع به سطح بالاتر","Act":"نیازمند اقدام","Know":"جهت اطلاع",
  "PASS":"موفق","FAIL":"ناموفق","Role":"نقش","Scope":"دامنه دسترسی","Owner":"مسئول","Accountable":"پاسخ‌گو",
+ "CEO":"مدیریت ارشد","Executive":"مدیریت اجرایی","Manager":"مدیر واحد","Expert":"کارشناس","Auditor":"حسابرس","Board":"هیئت‌مدیره","Operator":"کاربر عملیاتی","Supervisor":"سرپرست",
  "Event":"رویداد","Case":"پرونده مدیریتی","Action":"اقدام","Decision":"تصمیم","Approval":"تأیید فرایندی","Notification":"اعلان",
  "Risk":"ریسک","Links":"ارتباط‌ها","Level":"سطح","Residual":"ریسک باقی‌مانده","Timeline":"روند زمانی","item":"کالا",
  "inventory":"انبار و لجستیک","production":"تولید و برنامه‌ریزی","maintenance":"فنی و نگهداری","quality":"آزمایشگاه و کیفیت",
@@ -118,7 +119,17 @@ var phrases=[
  [/\bSource\b/g,"منبع"],
  [/\bRole\b/g,"نقش"],
   [/\bScope\b/g,"دامنه دسترسی"]
-  ,[/\bCEO\b/g,"مدیرعامل"]
+  ,[/\bCEO\b/g,"مدیریت ارشد"]
+  ,[/\bExecutive\b/g,"مدیریت اجرایی"]
+  ,[/\bManager\b/g,"مدیر واحد"]
+  ,[/\bExpert\b/g,"کارشناس"]
+  ,[/\bAuditor\b/g,"حسابرس"]
+  ,[/\bOperator\b/g,"کاربر عملیاتی"]
+  ,[/\bSupervisor\b/g,"سرپرست"]
+  ,[/\bassigned\b/g,"موارد واگذارشده"]
+  ,[/\bdepartment\b/g,"واحد سازمانی"]
+  ,[/\boperations\b/g,"عملیات"]
+  ,[/\borganization-read\b/g,"کل سازمان، فقط مشاهده"]
   ,[/\borganization\b/g,"کل سازمان"]
   ,[/\binventory\b/g,"انبار و لجستیک"]
   ,[/\bProjection\b/g,"نمای زنده"]
