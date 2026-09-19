@@ -23,10 +23,30 @@ function head(c){return '<div class="head"><div><h2>'+esc(c.title)+'</h2><p>'+es
 function tabs(c){var a=state.active[c.key]||"overview",items=[["overview","نمای کلی"],["ops","عملیات"],["flow","فرایند و کنترل"],["rules","Exception / Rule"],["deps","ارتباطات"],["reports","KPI و گزارش"]];return '<div class="tabs od-tabs">'+items.map(function(x){return '<button class="tab '+(a===x[0]?"active":"")+'" data-od="tab" data-key="'+c.key+'" data-tab="'+x[0]+'">'+x[1]+'</button>'}).join("")+'</div>'}
 function areaCards(c){return '<div class="grid od-areas">'+c.areas.map(function(a){return '<div class="card panel od-area"><div class="pt">'+esc(a[0])+'</div><div class="ps">'+esc(a[1])+'</div><div class="meta">'+chip("Owner: "+a[2])+chip("Source: "+a[3])+'</div></div>'}).join("")+'</div>'}
 function exceptionCards(c){return c.exceptions.map(function(x,i){return '<div class="att od-ex"><span class="dot '+(tone(x[2])==="critical"?"red":"amber")+'"></span><div style="flex:1"><h4>'+esc(x[0])+'</h4><p>'+esc(x[1])+'</p><div class="meta">'+chip(x[2])+chip("Owner: "+x[3])+chip(x[4])+'</div></div><button class="btn sm" data-od="run-rule" data-key="'+c.key+'" data-idx="'+i+'">اجرای Rule</button></div>'}).join("")}
+function liveAttention(c){
+ var K=kernel();if(!K)return exceptionCards(c);
+ var evs=K.query("events").filter(function(x){return x.module===c.key&&x.status==="Active"}).slice(-5).reverse();
+ var cases=K.query("cases").filter(function(x){return x.module===c.key&&x.status!=="Closed"});
+ if(!evs.length&&!cases.length)return '<div class="option"><p>Exception فعالی در Kernel برای این ماژول وجود ندارد؛ Ruleها در تب Exception / Rule قابل مشاهده‌اند.</p></div>';
+ return evs.map(function(x){
+  var related=cases.find(function(k){return (k.eventIds||[]).indexOf(x.id)>=0});
+  return '<div class="att od-ex"><span class="dot '+(tone(x.severity)==="critical"?"red":"amber")+'"></span><div style="flex:1"><h4>'+esc(x.type)+'</h4><p>'+esc(x.context||"")+'</p><div class="meta">'+chip(x.id)+st(x.severity)+(related?chip(related.id+" · "+related.status):"")+'</div></div></div>';
+ }).join("");
+}
+function liveDependencyGraph(c){
+ var K=kernel();if(!K)return"";
+ var raw=K.getStore(),visibleIds={};
+ K.query("events").filter(function(x){return x.module===c.key}).forEach(function(x){visibleIds[x.id]=true;if(x.entityId)visibleIds[x.entityId]=true});
+ K.query("cases").filter(function(x){return x.module===c.key}).forEach(function(x){visibleIds[x.id]=true});
+ K.query("actions").filter(function(x){return x.module===c.key}).forEach(function(x){visibleIds[x.id]=true});
+ var links=(raw.links||[]).filter(function(l){return visibleIds[l.from]||visibleIds[l.to]}).slice(-12).reverse();
+ if(!links.length)return '<div class="option"><p>هنوز Link زنده‌ای برای این ماژول ثبت نشده است.</p></div>';
+ return links.map(function(l){return '<div class="od-dep"><div><b>'+esc(l.from)+'</b><small>'+esc(l.root?"Root/Source":"Entity")+'</small></div><span>←</span><div><b>'+esc(l.to)+'</b><small>'+esc(l.type)+'</small></div></div>'}).join("");
+}
 function actionList(c){var K=kernel(),a=K?K.query("actions").filter(function(x){return x.module===c.key&&!/Completed|Verified|Cancelled/.test(x.status)}):[];if(!a.length)return '<div class="option"><p>Action فعالی در Kernel برای این ماژول ثبت نشده است.</p></div>';return a.map(function(x){return '<div class="att"><span class="dot '+(/P0|P1/.test(x.priority)?"red":"amber")+'"></span><div style="flex:1"><h4>'+esc(x.title)+'</h4><p>'+esc(x.owner)+' · '+new Date(x.dueAt).toLocaleString("fa-IR")+'</p></div>'+st(x.status)+' <button class="btn sm" data-od="complete-action" data-id="'+x.id+'">تکمیل</button></div>'}).join("")}
 function renderOverview(c){
   return kpis(c.kpis)+
-    '<div class="grid two"><div class="card panel"><div class="ph"><div><div class="pt">صف توجه عملیاتی</div><div class="ps">مواردی که از وضعیت عادی خارج شده‌اند</div></div></div>'+exceptionCards(c)+'</div>'+
+    '<div class="grid two"><div class="card panel"><div class="ph"><div><div class="pt">صف توجه عملیاتی</div><div class="ps">Live Projection از Event و Caseهای Kernel</div></div></div>'+liveAttention(c)+'</div>'+
     '<div class="card panel"><div class="pt">معماری عملیاتی ماژول</div><div class="ps">هر زیرحوزه Owner و Source مشخص دارد.</div>'+areaCards(c)+'</div></div>'+
     '<div class="card panel" style="margin-top:13px"><div class="pt">جریان اصلی</div><div class="ps">'+esc(c.flowDesc)+'</div>'+flow(c.process)+'</div>'+
     '<div class="card panel" style="margin-top:13px"><div class="ph"><div><div class="pt">رکوردهای عملیاتی</div><div class="ps">'+(hasCentralRecords(c)?'Source: Management Kernel Business Record Store · تغییر داده → Event خودکار':'داده نمایشی')+'</div></div>'+(hasCentralRecords(c)?'<button class="btn sm" data-mrv2="new" data-key="'+c.key+'">+ رکورد</button>':'')+'</div>'+recordTable(c)+'</div>'
@@ -49,7 +69,8 @@ function renderRules(c){
 }
 function renderExecutions(key){var K=kernel(),a=K?K.query("events").filter(function(x){return x.module===key}).slice(-6).reverse():[];if(!a.length)return '<div class="option"><p>هنوز Event پردازش‌شده‌ای برای این ماژول در Kernel نیست.</p></div>';return a.map(function(x){return '<div class="att"><span class="dot '+(tone(x.severity)==="critical"?"red":"amber")+'"></span><div style="flex:1"><h4>'+esc(x.type)+'</h4><p>'+new Date(x.updatedAt||x.createdAt).toLocaleString("fa-IR")+' · '+esc(x.context||"")+' · Occurrences: '+esc(x.occurrences||1)+'</p></div>'+st(x.severity)+'</div>'}).join("")}
 function renderDeps(c){
-  return '<div class="card panel"><div class="pt">Dependency Graph</div><div class="ps">این ماژول مستقل نیست؛ تغییرات مهم باید اثر خود را در واحدهای مرتبط منتقل کنند.</div>'+c.dependencies.map(function(d){return '<div class="od-dep"><div><b>'+esc(c.title)+'</b><small>'+esc(d[0])+'</small></div><span>←</span><div><b>'+esc(d[1])+'</b><small>'+esc(d[2])+'</small></div></div>'}).join("")+'</div>'+
+  return '<div class="grid two"><div class="card panel"><div class="pt">Dependency Graph زنده</div><div class="ps">Linkهای واقعی ساخته‌شده توسط Kernel</div>'+liveDependencyGraph(c)+'</div>'+
+    '<div class="card panel"><div class="pt">Dependency Contract</div><div class="ps">قراردادهای ثابت بین ماژول‌ها</div>'+c.dependencies.map(function(d){return '<div class="od-dep"><div><b>'+esc(c.title)+'</b><small>'+esc(d[0])+'</small></div><span>←</span><div><b>'+esc(d[1])+'</b><small>'+esc(d[2])+'</small></div></div>'}).join("")+'</div></div>'+
     '<div class="card panel" style="margin-top:13px"><div class="pt">Correlation Rules</div>'+c.correlations.map(function(x){return '<div class="option '+(x[2]==="Root"?"rec":"")+'"><p><b>'+esc(x[0])+'</b><br>'+esc(x[1])+' · '+esc(x[2])+'</p></div>'}).join("")+'</div>'
 }
 function renderReports(c){
