@@ -122,6 +122,7 @@ var modules={
  ])
 };
 
+function cloneRecord(x){var r={};Object.keys(x||{}).forEach(function(k){r[k]=Array.isArray(x[k])?x[k].slice():x[k]});return r}
 function normalizeSeed(x){
  var r={};Object.keys(x).forEach(function(k){r[k]=x[k]});
  ["shipmentIds","partIds"].forEach(function(k){if(Array.isArray(r[k]))r[k]=r[k].join(",")});
@@ -176,7 +177,10 @@ function openForm(key,id){
  m.innerHTML='<div class="modalbg"><div class="modal"><div class="mh"><b>'+(id?"ویرایش":"ثبت")+' داده عملیاتی — '+esc(key)+'</b><button class="close" data-mrv2="close">×</button></div><div class="mb"><div class="form">'+d.fields.map(function(f){return inputField(f,rec[f[0]])}).join("")+'</div><div class="option rec"><p>با ذخیره، Data Validation و Event Automation به‌صورت خودکار اجرا می‌شود؛ نیاز به «ثبت Event» جدا نیست.</p></div></div><div class="mf"><button class="btn primary" data-mrv2="save" data-key="'+key+'" data-id="'+esc(id||"")+'">ذخیره و ارزیابی</button><button class="btn" data-mrv2="close">انصراف</button></div></div></div>';
 }
 function saveForm(key,id){
- var d=modules[key],rec={module:key};
+ var d=modules[key],existing=id?records(key).find(function(x){return x.id===id}):null;
+ var base=existing||cloneRecord((d.seeds&&d.seeds[0])||{});
+ var rec={};Object.keys(base).forEach(function(k){rec[k]=base[k]});
+ rec.module=key;
  document.querySelectorAll("#modal [data-mrv2-field]").forEach(function(el){
   var k=el.getAttribute("data-mrv2-field"),f=d.fields.find(function(x){return x[0]===k}),v=f&&f[2]==="checkbox"?el.checked:el.value;
   if(f&&f[2]==="number")v=+v||0;rec[k]=v;
