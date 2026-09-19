@@ -13,6 +13,7 @@ const checks = [
   ["Global search derives from Kernel", /K\.query\("decisions"\)/.test(app) && /K\.queryRecords\("inventoryItem"\)/.test(app)],
   ["Role switch synchronizes profile", /function syncProfile/.test(views) && /syncProfile\(\)/.test(views)],
   ["Kernel updates refresh navigation", /refreshKernelNav/.test(app) && /window\.refreshKernelNav/.test(views)],
+  ["Navigation releases stale Kernel view ownership", /removeAttribute\("data-kv2"\)/.test(app)],
   ["Mobile header can shrink safely", /\.search\{[^}]*min-width:0/.test(css) && /@media\(max-width:520px\)/.test(css)],
   ["Mobile sidebar has overlay", /@media\(max-width:820px\)[\s\S]*\.sidebar\.open/.test(css) && /\.overlay/.test(css)]
 ];

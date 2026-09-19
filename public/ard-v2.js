@@ -262,7 +262,7 @@ window.copyBrief=function(){var t="گزارش صبحگاهی: تولید ۹۲٪�
 window.decisionMemory=function(){modal("حافظه تصمیمات سازمان",'<div class="timeline"><div class="tl"><b>DEC-088</b><p>تعویض Bearing خط ۱ → کاهش ۴ ساعت توقف ماهانه.</p></div><div class="tl"><b>DEC-071</b><p>تغییر ترتیب PM → خرابی تکراری ۱۸٪ کمتر شد.</p></div></div><div class="option"><p>Expected vs Actual حذف نمی‌شود و برای تصمیم آینده می‌ماند.</p></div>')}
 function render(){
  var map={dashboard:dashboard,decisions:decisions,inbox:inbox,cases:cases,risks:risks,mywork:mywork,department:department,production:production,wheat:wheat,quality:quality,inventory:inventory,maintenance:maintenance,energy:energy,procurement:procurement,sales:sales,finance:finance,tax:tax,ledger:ledger,assets:assets,hr:hr,security:security,hse:hse,meetings:meetings,projects:projects,bi:bi,documents:documents,ai:ai,settings:settings};
- E("content").innerHTML=(map[state.page]||dashboard)();renderNav();if(state.page==="ai"){var q=E("aiq");if(q)q.onkeydown=function(e){if(e.key==="Enter")askAI()}}
+ E("content").removeAttribute("data-kv2");E("content").innerHTML=(map[state.page]||dashboard)();renderNav();if(state.page==="ai"){var q=E("aiq");if(q)q.onkeydown=function(e){if(e.key==="Enter")askAI()}}
 }
 function setupSearch(){var i=E("gsearch"),box=E("searchres");i.oninput=function(){var q=i.value.trim().toLowerCase();if(!q){box.classList.add("hidden");return}var a=[],K=window.ManagementKernel;
  if(K&&K.version===2){
