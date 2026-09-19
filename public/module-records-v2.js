@@ -209,8 +209,10 @@ document.addEventListener("click",function(ev){
  if(a==="edit")openForm(key,id);
  if(a==="part-request")openPartRequest();
  if(a==="save-part-request")savePartRequest();
- if(a==="order-pr"){K.progressPurchase(id,"order",{});if(window.render)window.render()}
- if(a==="receive-pr"){K.progressPurchase(id,"receive",{});if(window.render)window.render()}
+ if(a==="order-pr"||a==="receive-pr"){
+  try{K.progressPurchase(id,a==="order-pr"?"order":"receive",{});setTimeout(function(){if(window.go)window.go("procurement");else if(window.render)window.render()},30)}
+  catch(e){var box3=document.getElementById("toasts");if(box3){var t3=document.createElement("div");t3.className="toast";t3.innerHTML="<b>ادامه فرایند انجام نشد</b><small>"+esc(e.message)+"</small>";box3.appendChild(t3);setTimeout(function(){t3.remove()},4000)}}
+ }
  if(a==="new")openForm(key,null);
  if(a==="save")saveForm(key,id||null);
  if(a==="close"){var m=document.getElementById("modal");if(m)m.innerHTML=""}
