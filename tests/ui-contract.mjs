@@ -20,6 +20,8 @@ const checks = [
   ,["Vazirmatn is bundled and applied", /@font-face/.test(css) && /Vazirmatn\.woff2/.test(css) && fs.existsSync(new URL("../public/fonts/Vazirmatn.woff2", import.meta.url))]
   ,["Persian UI humanizer loads last", html.indexOf("ui-fa.js") > html.indexOf("kernel-ai-v2.js")]
   ,["Core management terms have human Persian labels", ["رویداد","پرونده مدیریتی","اقدام","تصمیم","تأیید فرایندی","مهلت انجام","دامنه دسترسی"].every(term => faUi.includes(term))]
+  ,["Part request is available from inventory UI", /data-mrv2="part-request"/.test(read("public/module-records-v2.js")) && /K\.requestPart\(v\)/.test(read("public/module-records-v2.js"))]
+  ,["Procurement UI advances PR to order and receipt", /data-mrv2="order-pr"/.test(read("public/module-records-v2.js")) && /data-mrv2="receive-pr"/.test(read("public/module-records-v2.js"))]
 ];
 
 for (const [name, ok] of checks) console.log(`${ok ? "PASS" : "FAIL"}: ${name}`);

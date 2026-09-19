@@ -46,6 +46,7 @@ function mkSeed(){
    }
   },
   records:{
+   partRequests:[],inventoryMovements:[],purchaseRequests:[],goodsReceipts:[],financialCommitments:[],
    hrPerformance:[
     {id:"PERF-Q2-41",kind:"hrPerformance",module:"hr",department:"HR",employeeId:"EMP-41",name:"حسین مرادی",unit:"تولید",period:"۱۴۰۵-Q2",kpi:"تحقق برنامه شیفت",target:95,actual:88,score:88,status:"نیازمند بهبود",sensitivity:"restricted"},
     {id:"PERF-Q2-57",kind:"hrPerformance",module:"hr",department:"HR",employeeId:"EMP-57",name:"مهدی رضایی",unit:"تولید",period:"۱۴۰۵-Q2",kpi:"پایداری عملیات شیفت",target:92,actual:84,score:84,status:"قابل قبول",sensitivity:"restricted"},
@@ -94,7 +95,7 @@ try{
  }
 }catch(e){db=mkSeed()}
 db.records=db.records||{};
-["hrPerformance","hrTraining","hrCompetency","hrExperience"].forEach(function(k){if(!Array.isArray(db.records[k]))db.records[k]=clone(mkSeed().records[k])});
+["partRequests","inventoryMovements","purchaseRequests","goodsReceipts","financialCommitments","hrPerformance","hrTraining","hrCompetency","hrExperience"].forEach(function(k){if(!Array.isArray(db.records[k]))db.records[k]=clone(mkSeed().records[k]||[])});
 ["EMP-41","EMP-57","EMP-22"].forEach(function(id){if(!db.master.entities[id])db.master.entities[id]=clone(mkSeed().master.entities[id])});
 function persist(){
  localStorage.setItem(KEY,JSON.stringify(db));
@@ -429,6 +430,43 @@ function removeBusinessRecord(kind,id){
  var list=db.records[kind]||[],rec=list.find(function(x){return x.id===id});if(!rec)return false;requirePerm("write","business_record",rec);
  db.records[kind]=list.filter(function(x){return x.id!==id});audit("record.remove",id,kind+" رکورد حذف شد");persist();return true;
 }
+function requestPart(input){
+ input=clone(input||{});var qty=+input.qty||0,item=entity(input.itemId),requestId=input.id||uid("REQ");
+ requirePerm("create","business_record",{module:"inventory",department:"Inventory",sensitivity:"internal"});
+ if(!item||item.type!=="item")throw new Error("ITEM_NOT_FOUND");
+ if(qty<=0||Math.floor(qty)!==qty)throw new Error("INVALID_QUANTITY");
+ if((db.records.partRequests||[]).some(function(x){return x.id===requestId}))throw new Error("DUPLICATE_REQUEST");
+ var available=+(item.available==null?item.stock:item.available)||0,safety=+item.safety||0,issued=Math.min(available,qty),remaining=available-issued;
+ var req={id:requestId,kind:"partRequest",module:"inventory",department:"Inventory",itemId:item.id,qty:qty,requester:input.requester||currentUser().name,workOrderId:input.workOrderId||null,status:issued===qty?"Issued":"Partially Issued",issuedQty:issued,createdAt:now(),sensitivity:"internal"};
+ db.records.partRequests.push(req);
+ if(issued>0){
+  var mov={id:uid("ISS"),kind:"inventoryMovement",module:"inventory",department:"Inventory",requestId:req.id,itemId:item.id,qty:issued,type:"Issue",status:"Posted",createdAt:now(),sensitivity:"internal"};
+  db.records.inventoryMovements.push(mov);item.stock=remaining;item.available=remaining;link(req.id,mov.id,"fulfilled-by-issue",true);if(req.workOrderId)link(mov.id,req.workOrderId,"issued-to-work-order",false);
+ }
+ var replenish=issued<qty||remaining<=safety;
+ if(replenish){
+  var shortage=Math.max(0,qty-issued),prQty=Math.max(shortage,safety-remaining+1),pr={id:uid("PR"),kind:"purchaseRequest",module:"procurement",department:"Procurement",requestId:req.id,itemId:item.id,qty:prQty,status:"Requested",reason:shortage>0?"کسری موجودی":"رسیدن موجودی به حد سفارش",createdAt:now(),sensitivity:"confidential"};
+  db.records.purchaseRequests.push(pr);req.purchaseRequestId=pr.id;req.status=issued===qty?"Issued / Replenishment Requested":"Awaiting Supply";link(req.id,pr.id,"triggers-purchase-request",true);
+  emitEvent({type:remaining<=0?"Inventory.Stockout":"Inventory.LowStock",module:"inventory",entityId:item.id,severity:item.critical?"S4":"S3",impact:item.critical?"I4":"I3",urgency:"U4",context:pr.reason+" برای "+(item.name||item.id),payload:{stock:remaining,coverageDays:item.coverageDays||0,emergencyPurchaseAmount:+input.estimatedAmount||300000000}});
+ }
+ audit("part.request",req.id,"درخواست قطعه ارزیابی شد",{itemId:item.id,qty:qty,issued:issued,purchaseRequired:replenish});persist();return clone({request:req,purchaseRequest:req.purchaseRequestId?(db.records.purchaseRequests.find(function(x){return x.id===req.purchaseRequestId})):null});
+}
+function progressPurchase(prId,step,input){
+ input=clone(input||{});var pr=(db.records.purchaseRequests||[]).find(function(x){return x.id===prId});if(!pr)throw new Error("PURCHASE_REQUEST_NOT_FOUND");
+ requirePerm("transition","business_record",pr);var po,receipt,commitment;
+ if(step==="order"){
+  if(pr.poId)throw new Error("PURCHASE_ALREADY_ORDERED");
+  po={id:input.poId||uid("PO"),type:"po",name:input.poId||"سفارش خرید",module:"procurement",department:"Procurement",itemId:pr.itemId,qty:pr.qty,vendor:input.vendor||"تأمین‌کننده تأییدشده",etaDays:+input.etaDays||5,value:+input.value||0,status:"Ordered",sourcePrId:pr.id,sensitivity:"confidential"};
+  db.master.entities[po.id]=po;pr.poId=po.id;pr.status="Ordered";link(pr.id,po.id,"converted-to-order",true);
+ }else if(step==="receive"){
+  if(!pr.poId)throw new Error("ORDER_REQUIRED");if(pr.receiptId)throw new Error("PURCHASE_ALREADY_RECEIVED");
+  po=entity(pr.poId);var received=+input.qty||pr.qty;if(received<=0||received>pr.qty)throw new Error("INVALID_RECEIPT_QUANTITY");
+  receipt={id:uid("GRN"),kind:"goodsReceipt",module:"inventory",department:"Inventory",prId:pr.id,poId:pr.poId,itemId:pr.itemId,qty:received,status:"Accepted",createdAt:now(),sensitivity:"internal"};db.records.goodsReceipts.push(receipt);pr.receiptId=receipt.id;pr.status="Received";if(po)po.status="Delivered";
+  var item=entity(pr.itemId);item.stock=(+item.stock||0)+received;item.available=(+item.available||0)+received;link(pr.poId,receipt.id,"received-as",true);
+  commitment={id:uid("FIN"),kind:"financialCommitment",module:"finance",department:"Finance",prId:pr.id,poId:pr.poId,amount:po?+po.value||0:0,status:"Recorded",createdAt:now(),sensitivity:"confidential"};db.records.financialCommitments.push(commitment);pr.financialCommitmentId=commitment.id;link(receipt.id,commitment.id,"creates-financial-commitment",false);
+ }else throw new Error("INVALID_PURCHASE_STEP");
+ audit("purchase."+step,pr.id,"فرایند خرید به‌روزرسانی شد",{poId:pr.poId||null});persist();return clone({purchaseRequest:pr,order:po||entity(pr.poId),receipt:receipt||null,financialCommitment:commitment||null});
+}
 function createManualAction(input){
  input=input||{};
  var rec={module:input.module||"general",sensitivity:input.sensitivity||"internal"};
@@ -555,6 +593,11 @@ function runAcceptanceSuite(){
   test("Ledger blocked control creates case",function(){var r=upsertBusinessRecord("ledgerControl",{id:"GL-AUTO",module:"ledger",department:"Finance",sensitivity:"confidential",name:"Bank Reconcile",status:"Blocked",critical:true});return r._derivedEvents.length>0&&db.cases.some(function(x){return x.module==="ledger"&&x.status!=="Closed"})});
   test("Expired critical document creates case and action",function(){var r=upsertBusinessRecord("documentControl",{id:"DOC-AUTO",module:"documents",department:"Executive",name:"Policy X",type:"Policy",owner:"مدیریت",status:"Expired",critical:true});return r._derivedEvents.length>0&&db.actions.some(function(a){return a.module==="documents"})});
   test("Department KPI deviation auto-creates corrective action",function(){var r=upsertBusinessRecord("departmentKpi",{id:"KPI-AUTO",module:"department",department:"Operations",name:"تحقق برنامه",sourceModule:"production",actual:80,target:100,owner:"مدیر تولید"});return r._derivedEvents.length>0&&db.actions.some(function(a){return a.module==="production"&&/Department.KPIOffTarget/.test(a.title)});});
+  test("In-stock part request issues stock without purchase",function(){db.master.entities["ITEM-OK"]={id:"ITEM-OK",type:"item",name:"قطعه موجود",module:"inventory",stock:20,available:20,safety:5};var r=requestPart({id:"REQ-IN-STOCK",itemId:"ITEM-OK",qty:4,workOrderId:"WO-531"});return r.request.issuedQty===4&&entity("ITEM-OK").stock===16&&!r.purchaseRequest&&db.records.inventoryMovements.some(function(x){return x.requestId==="REQ-IN-STOCK"})});
+  test("Reorder point creates PR only after stock issue",function(){var r=requestPart({id:"REQ-REORDER",itemId:"ITEM-OK",qty:12,estimatedAmount:120000000});return r.request.issuedQty===12&&entity("ITEM-OK").stock===4&&r.purchaseRequest&&r.purchaseRequest.reason==="رسیدن موجودی به حد سفارش"});
+  test("Stock shortage creates PR and no duplicate PO",function(){db.master.entities["ITEM-SHORT"]={id:"ITEM-SHORT",type:"item",name:"قطعه کسری",module:"inventory",stock:2,available:2,safety:4,critical:false};var r=requestPart({id:"REQ-SHORT",itemId:"ITEM-SHORT",qty:6,estimatedAmount:100000000});var o=progressPurchase(r.purchaseRequest.id,"order",{poId:"PO-FLOW",vendor:"تأمین‌کننده آزمون",value:90000000,etaDays:3});var blocked=false;try{progressPurchase(r.purchaseRequest.id,"order",{poId:"PO-DUP"})}catch(e){blocked=e.message==="PURCHASE_ALREADY_ORDERED"}return r.request.issuedQty===2&&r.purchaseRequest.qty>=4&&o.order.id==="PO-FLOW"&&blocked});
+  test("PO receipt updates inventory and finance",function(){var pr=db.records.purchaseRequests.find(function(x){return x.requestId==="REQ-SHORT"}),before=entity("ITEM-SHORT").stock,r=progressPurchase(pr.id,"receive",{qty:pr.qty});return entity("ITEM-SHORT").stock===before+pr.qty&&r.receipt.status==="Accepted"&&r.financialCommitment.status==="Recorded"&&entity("PO-FLOW").status==="Delivered"});
+  test("Invalid part request fails safely",function(){try{requestPart({id:"REQ-BAD",itemId:"ITEM-OK",qty:-1});return false}catch(e){return e.message==="INVALID_QUANTITY"&&!db.records.partRequests.some(function(x){return x.id==="REQ-BAD"})}});
 
  }finally{
   var pass=results.filter(function(x){return x.ok}).length;
@@ -564,7 +607,7 @@ function runAcceptanceSuite(){
 }
 function getStore(){return clone(db)}
 window.ManagementKernel={
- version:2,emitEvent:emitEvent,queryBusinessRecords:queryBusinessRecords,upsertBusinessRecord:upsertBusinessRecord,removeBusinessRecord:removeBusinessRecord,createManualAction:createManualAction,resolveDecision:resolveDecision,transitionApproval:transitionApproval,completeAction:completeAction,verifyCase:verifyCase,closeCase:closeCase,acknowledge:acknowledgeNotification,tick:tick,snapshot:snapshot,getStore:getStore,reset:reset,runReferenceScenario:runReferenceScenario,runAcceptanceSuite:runAcceptanceSuite,setSession:setSession,currentUser:function(){return clone(currentUser())},can:can,query:query,upsertEntity:upsertEntity,addDelegation:addDelegation,findLinks:findLinks,link:link
+ version:2,emitEvent:emitEvent,queryBusinessRecords:queryBusinessRecords,upsertBusinessRecord:upsertBusinessRecord,removeBusinessRecord:removeBusinessRecord,requestPart:requestPart,progressPurchase:progressPurchase,createManualAction:createManualAction,resolveDecision:resolveDecision,transitionApproval:transitionApproval,completeAction:completeAction,verifyCase:verifyCase,closeCase:closeCase,acknowledge:acknowledgeNotification,tick:tick,snapshot:snapshot,getStore:getStore,reset:reset,runReferenceScenario:runReferenceScenario,runAcceptanceSuite:runAcceptanceSuite,setSession:setSession,currentUser:function(){return clone(currentUser())},can:can,query:query,upsertEntity:upsertEntity,addDelegation:addDelegation,findLinks:findLinks,link:link
 };
 audit("kernel.boot","KERNEL","Management Kernel v2 initialized",{version:2});persist();
 })();

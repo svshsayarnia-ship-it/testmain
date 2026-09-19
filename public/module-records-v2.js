@@ -162,9 +162,17 @@ function cell(v,k){
 }
 function renderTable(key){
  var d=modules[key],rs=records(key);if(!d)return"";
- if(!rs.length)return '<div class="option"><p>رکوردی در Scope فعلی قابل مشاهده نیست.</p></div>';
- return '<div class="tablewrap"><table class="tbl"><thead><tr>'+d.columns.map(function(c){return '<th>'+esc(c[1])+'</th>'}).join("")+'<th></th></tr></thead><tbody>'+rs.map(function(r){return '<tr>'+d.columns.map(function(c){return '<td>'+cell(r[c[0]],c[0])+'</td>'}).join("")+'<td><button class="btn sm" data-mrv2="edit" data-key="'+key+'" data-id="'+esc(r.id)+'">ویرایش</button></td></tr>'}).join("")+'</tbody></table></div>'
+ var tools=key==="inventory"?'<div class="ph"><div><div class="pt">درخواست و خروج قطعه</div><div class="ps">ابتدا موجودی بررسی می‌شود؛ خرید فقط هنگام کسری یا رسیدن به حد سفارش آغاز می‌شود.</div></div><button class="btn primary" data-mrv2="part-request">درخواست قطعه</button></div>':"";
+ if(key==="procurement"){
+  var prs=K.queryBusinessRecords("purchaseRequests");tools='<div class="card panel"><div class="pt">درخواست‌های خرید ناشی از نیاز واقعی انبار</div>'+(prs.length?prs.map(function(p){return '<div class="att"><div style="flex:1"><h4>'+esc(p.id)+' · '+esc(p.itemId)+'</h4><p>'+fa(p.qty)+' عدد · '+esc(p.reason)+' · '+esc(p.status)+'</p></div>'+(p.status==="Requested"?'<button class="btn sm" data-mrv2="order-pr" data-id="'+esc(p.id)+'">صدور سفارش خرید</button>':p.status==="Ordered"?'<button class="btn sm" data-mrv2="receive-pr" data-id="'+esc(p.id)+'">ثبت تحویل</button>':'')+'</div>'}).join(""):'<div class="option"><p>درخواست خرید بازی وجود ندارد.</p></div>')+'</div>';
+ }
+ if(!rs.length)return tools+'<div class="option"><p>رکوردی در دامنه دسترسی فعلی قابل مشاهده نیست.</p></div>';
+ return tools+'<div class="tablewrap"><table class="tbl"><thead><tr>'+d.columns.map(function(c){return '<th>'+esc(c[1])+'</th>'}).join("")+'<th></th></tr></thead><tbody>'+rs.map(function(r){return '<tr>'+d.columns.map(function(c){return '<td>'+cell(r[c[0]],c[0])+'</td>'}).join("")+'<td><button class="btn sm" data-mrv2="edit" data-key="'+key+'" data-id="'+esc(r.id)+'">ویرایش</button></td></tr>'}).join("")+'</tbody></table></div>'
 }
+function openPartRequest(){
+ var m=document.getElementById("modal");if(!m)return;m.innerHTML='<div class="modalbg"><div class="modal"><div class="mh"><b>ثبت درخواست قطعه</b><button class="close" data-mrv2="close">×</button></div><div class="mb"><div class="form"><div class="field"><label>کد کالا</label><input data-part-field="itemId" placeholder="مانند ITEM-6205"></div><div class="field"><label>تعداد موردنیاز</label><input data-part-field="qty" type="number" min="1"></div><div class="field"><label>شماره دستور کار</label><input data-part-field="workOrderId" placeholder="اختیاری"></div><div class="field"><label>مبلغ برآوردی خرید</label><input data-part-field="estimatedAmount" type="number" min="0"></div></div><div class="option rec"><p>سامانه موجودی را کنترل می‌کند؛ در صورت کفایت، قطعه خارج می‌شود و هیچ خریدی ساخته نمی‌شود.</p></div></div><div class="mf"><button class="btn primary" data-mrv2="save-part-request">ثبت و ارزیابی موجودی</button><button class="btn" data-mrv2="close">انصراف</button></div></div></div>';
+}
+function savePartRequest(){var v={};document.querySelectorAll("#modal [data-part-field]").forEach(function(el){v[el.getAttribute("data-part-field")]=el.type==="number"?+el.value:el.value});var r=K.requestPart(v),m=document.getElementById("modal");if(m)m.innerHTML="";var b=document.getElementById("toasts");if(b){var t=document.createElement("div");t.className="toast";t.innerHTML="<b>درخواست قطعه ثبت شد</b><small>"+(r.purchaseRequest?"درخواست خرید فقط به دلیل کسری یا حد سفارش ایجاد شد.":"قطعه از انبار خارج شد؛ خریدی ایجاد نشد.")+"</small>";b.appendChild(t);setTimeout(function(){t.remove()},4000)}}
 function inputField(f,val){
  var key=f[0],label=f[1],type=f[2],opts=f[3]||[];
  if(type==="select")return '<div class="field"><label>'+esc(label)+'</label><select data-mrv2-field="'+key+'">'+opts.map(function(o){return '<option '+(String(val)===String(o)?"selected":"")+'>'+esc(o)+'</option>'}).join("")+'</select></div>';
@@ -199,6 +207,10 @@ function saveForm(key,id){
 document.addEventListener("click",function(ev){
  var x=ev.target.closest("[data-mrv2]");if(!x)return;var a=x.getAttribute("data-mrv2"),key=x.getAttribute("data-key"),id=x.getAttribute("data-id");
  if(a==="edit")openForm(key,id);
+ if(a==="part-request")openPartRequest();
+ if(a==="save-part-request")savePartRequest();
+ if(a==="order-pr"){K.progressPurchase(id,"order",{});if(window.render)window.render()}
+ if(a==="receive-pr"){K.progressPurchase(id,"receive",{});if(window.render)window.render()}
  if(a==="new")openForm(key,null);
  if(a==="save")saveForm(key,id||null);
  if(a==="close"){var m=document.getElementById("modal");if(m)m.innerHTML=""}
