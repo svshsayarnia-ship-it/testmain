@@ -1,6 +1,7 @@
 (function(){
 "use strict";
-var KEY="ard_management_kernel_v2";\nvar SCHEMA_VERSION=3;
+var KEY="ard_management_kernel_v2";
+var SCHEMA_VERSION=3;
 function now(){return Date.now()}
 function uid(prefix){return prefix+"-"+Math.floor(Math.random()*900000+100000)}
 function clone(x){return JSON.parse(JSON.stringify(x))}
@@ -11,7 +12,8 @@ function riskLevel(p,i){var n=(+String(p).replace(/\D/g,"")||3)*(+String(i).repl
 function roleLevel(r){return {Operator:1,Expert:2,Supervisor:3,Manager:4,Executive:5,CEO:6,Board:7,Auditor:3}[r]||1}
 function mkSeed(){
  return {
-  version:2,\n  schemaVersion:SCHEMA_VERSION,
+  version:2,
+  schemaVersion:SCHEMA_VERSION,
   config:{
    thresholds:{ceoPurchase:500000000,executivePurchase:250000000,criticalDowntimeMin:30,highFinancialExposure:1000000000},
    sla:{actionDefaultMs:6*3600000,decisionP1Ms:3600000,decisionP2Ms:4*3600000,approvalMs:8*3600000,ackP0Ms:15*60000,ackP1Ms:60*60000},
