@@ -296,6 +296,26 @@ function ruleProject(ev,input,ctx){var c=createCase({key:"project:"+String(ev.en
 function ruleFinance(ev,input,ctx){var c=createCase({key:"finance:"+String(ev.entityId||ev.id),title:"ریسک نقدینگی",module:"finance",severity:"High",impact:"I4",owner:"مدیر مالی",ownerUserId:"USR-FIN",accountable:"مدیرعامل",eventId:ev.id,sensitivity:"confidential"});var a=createAction({key:"cash-plan:"+c.key,caseId:c.id,title:"سناریوی اصلاح Cash Forecast",module:"finance",owner:"مدیر مالی",ownerUserId:"USR-FIN",dueMs:4*3600000,expectedResult:"Gap + Funding Options",priority:"P2",sensitivity:"confidential"});notify({caseId:c.id,purpose:"Know",priority:"P2",title:"ریسک نقدینگی نیازمند پایش",recipient:"مدیرعامل",reason:"Major financial exposure",sensitivity:"confidential"});return {event:ev,case:c,action:a,output:"Finance Case + Executive Awareness"}}
 function rulePolicyException(ev,input,ctx){var c=createCase({key:"policy:"+String(ev.entityId||ev.id),title:"استثنای سیاست خرید",module:"procurement",severity:"High",impact:"I3",owner:"مدیر تدارکات",ownerUserId:"USR-PROC",accountable:"معاون عملیات",eventId:ev.id});var d=createDecision({key:"policy-decision:"+c.key,caseId:c.id,title:"تصمیم درباره استثنای سیاست خرید",owner:"معاون عملیات",ownerUserId:"USR-OPS",authority:"A4",requiredRole:"Executive",reason:ev.context||"Policy Exception",options:[{label:"Approve Exception"},{label:"Return to Policy"}],recommendation:"فقط در صورت توجیه اثر عملیاتی",priority:"P2"});notify({caseId:c.id,purpose:"Decide",priority:"P2",title:d.title,recipient:"معاون عملیات",reason:"Policy Exception"});return {event:ev,case:c,decision:d,output:"Decision"}}
 function ruleGeneric(ev,input,ctx){if(sevRank(ev.severity)>=4){var c=createCase({key:"generic:"+ev.dedupeKey,title:ev.context||ev.type,module:ev.module,severity:ev.severity,impact:ev.impact,owner:"مدیر واحد",eventId:ev.id});var a=createAction({key:"generic-action:"+c.key,caseId:c.id,title:"اقدام اصلاحی برای "+ev.type,module:ev.module,owner:"مدیر واحد",expectedResult:"Exception Resolved",priority:"P2"});return {event:ev,case:c,action:a,output:"Case + Action"}}var a2=createAction({key:"event-action:"+ev.dedupeKey,title:"بررسی "+ev.type,module:ev.module,owner:"مسئول واحد",expectedResult:"Review Result",priority:"P3"});return {event:ev,action:a2,output:"Action"}}
+function createManualAction(input){
+ input=input||{};
+ var rec={module:input.module||"general",sensitivity:input.sensitivity||"internal"};
+ requirePerm("create","action",rec);
+ var a=createAction({
+  key:input.key||("manual:"+(input.module||"general")+":"+uid("KEY")),
+  caseId:input.caseId||null,
+  title:input.title||"اقدام جدید",
+  module:input.module||"general",
+  owner:input.owner||currentUser().name,
+  ownerUserId:input.ownerUserId||null,
+  dueMs:input.dueMs||db.config.sla.actionDefaultMs,
+  expectedResult:input.expectedResult||"",
+  priority:input.priority||"P3",
+  sensitivity:input.sensitivity||"internal"
+ });
+ audit("action.manual",a.id,"Action دستی از ماژول ایجاد شد",{module:a.module});
+ persist();
+ return clone(a);
+}
 function transitionApproval(id,status,note){
  var a=db.approvals.find(function(x){return x.id===id});if(!a)return null;requirePerm("approve","approval",a);
  var allowed={Requested:["Under Review","Approved","Rejected","Returned"],"Under Review":["Approved","Rejected","Returned"],Returned:["Under Review","Cancelled"]};
@@ -395,7 +415,7 @@ function runAcceptanceSuite(){
 }
 function getStore(){return clone(db)}
 window.ManagementKernel={
- version:2,emitEvent:emitEvent,resolveDecision:resolveDecision,transitionApproval:transitionApproval,completeAction:completeAction,verifyCase:verifyCase,closeCase:closeCase,acknowledge:acknowledgeNotification,tick:tick,snapshot:snapshot,getStore:getStore,reset:reset,runReferenceScenario:runReferenceScenario,runAcceptanceSuite:runAcceptanceSuite,setSession:setSession,currentUser:function(){return clone(currentUser())},can:can,query:query,upsertEntity:upsertEntity,addDelegation:addDelegation,findLinks:findLinks,link:link
+ version:2,emitEvent:emitEvent,createManualAction:createManualAction,resolveDecision:resolveDecision,transitionApproval:transitionApproval,completeAction:completeAction,verifyCase:verifyCase,closeCase:closeCase,acknowledge:acknowledgeNotification,tick:tick,snapshot:snapshot,getStore:getStore,reset:reset,runReferenceScenario:runReferenceScenario,runAcceptanceSuite:runAcceptanceSuite,setSession:setSession,currentUser:function(){return clone(currentUser())},can:can,query:query,upsertEntity:upsertEntity,addDelegation:addDelegation,findLinks:findLinks,link:link
 };
 audit("kernel.boot","KERNEL","Management Kernel v2 initialized",{version:2});persist();
 })();
