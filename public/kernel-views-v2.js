@@ -87,13 +87,58 @@ function riskView(){
  return head("مرکز هشدار و ریسک","Risk آینده‌نگر است؛ Notification فقط Projection توجه است و Source of Truth نیست.")+permissionBadge()+kpis([["Risk فعال",rs.length,"Initial/Residual","red"],["اعلان",ns.length,"Grouped","amber"],["P0/P1",ns.filter(function(n){return /P0|P1/.test(n.priority)}).length,"بحرانی","red"],["Audit",K.snapshot().audit,"Immutable-like log",""]])+
  '<div class="grid two"><div class="card panel"><div class="pt">Risk Register</div>'+table(["ریسک","احتمال","اثر","Level","Residual","مالک"],rs.map(function(r){return [esc(r.title),esc(r.probability),esc(r.impact),st(r.level),st(r.residual),esc(r.owner)]}))+'</div><div class="card panel"><div class="pt">Exception Notifications</div>'+ns.slice(0,10).map(function(n){return '<div class="att"><div style="flex:1"><h4>'+esc(n.title)+'</h4><p>'+esc(n.purpose)+' · '+esc(n.reason)+'</p></div>'+st(n.priority)+'</div>'}).join("")+'</div></div>';
 }
+function dashboardView(){
+ var cs=K.query("cases").filter(function(x){return x.status!=="Closed"});
+ var ds=K.query("decisions").filter(function(x){return x.status!=="Decided"});
+ var aps=K.query("approvals").filter(function(x){return !/Approved|Rejected|Cancelled|Expired/.test(x.status)});
+ var acts=K.query("actions").filter(function(x){return !/Completed|Verified|Cancelled/.test(x.status)});
+ var rs=K.query("risks").filter(function(x){return x.status!=="Closed"});
+ var ns=K.query("notifications").filter(function(x){return !/Resolved|Expired|Suppressed/.test(x.status)});
+ var critical=cs.filter(function(x){return /Critical|Emergency/.test(x.severity)||x.priority==="P0"||x.priority==="P1"});
+ var overdue=acts.filter(function(x){return x.slaState==="Overdue"||Date.now()>x.dueAt});
+ var rank={Emergency:5,Critical:4,High:3,Medium:2,Low:1};
+ var attention=cs.slice().sort(function(a,b){return (rank[b.severity]||0)-(rank[a.severity]||0)||(a.priority||"P9").localeCompare(b.priority||"P9")}).slice(0,6);
+ var modules=[
+  ["production","تولید و برنامه‌ریزی"],["wheat","گندم و سیلوها"],["quality","آزمایشگاه و کیفیت"],["inventory","انبار و لجستیک"],
+  ["maintenance","فنی و نگهداری"],["energy","انرژی و تأسیسات"],["procurement","تدارکات و تأمین"],["sales","فروش و توزیع"],
+  ["finance","مالی و خزانه"],["hr","سرمایه انسانی"],["hse","HSE"],["security","حراست"],["projects","پروژه‌ها"]
+ ];
+ function modCard(m){
+  var arr=cs.filter(function(x){return x.module===m[0]}),crit=arr.filter(function(x){return /Critical|Emergency/.test(x.severity)}).length,high=arr.filter(function(x){return x.severity==="High"}).length;
+  var status=crit?"بحرانی":high?"هشدار":arr.length?"در پیگیری":"بدون Exception";
+  var cls=crit?"crit":high?"warn":"";
+  return '<button class="card mod '+cls+'" data-kv2="nav" data-page="'+m[0]+'"><span class="mdot"></span><div><div class="mn">'+esc(m[1])+'</div><div class="ms">'+fa(arr.length)+' Case فعال · '+status+'</div></div><div>'+st(crit?"Critical":high?"High":"Normal")+'</div></button>';
+ }
+ var att=attention.length?attention.map(function(x){var dec=(x.decisionIds||[]).some(function(id){return ds.some(function(d){return d.id===id})});return '<div class="att" data-kv2="case-detail" data-id="'+x.id+'"><span class="dot '+(/Critical|Emergency/.test(x.severity)?"red":"amber")+'"></span><div style="flex:1"><h4>'+esc(x.title)+'</h4><p>'+esc(x.owner)+' · '+esc(x.module)+(dec?" · نیازمند تصمیم":"")+'</p><div class="meta">'+chip(x.id)+st(x.severity)+st(x.status)+'</div></div></div>'}).join(""):'<div class="option"><p>Exception مدیریتی فعالی در Scope فعلی وجود ندارد.</p></div>';
+ var brief=[];
+ if(ds.length)brief.push(["تصمیم موردنیاز",ds.length+" Decision باز؛ "+ds.filter(function(x){return x.priority==="P1"}).length+" مورد P1"]);
+ if(critical.length)brief.push(["موضوع بحرانی",critical.length+" Case با اولویت بحرانی"]);
+ if(overdue.length)brief.push(["SLA","تعداد "+overdue.length+" Action از SLA عبور کرده"]);
+ if(rs.length)brief.push(["ریسک","بالاترین ریسک فعال: "+(rs.slice().sort(function(a,b){return (rank[b.level]||0)-(rank[a.level]||0)})[0]||{}).title]);
+ if(!brief.length)brief.push(["وضعیت","در Scope فعلی Exception بحرانی ثبت نشده است."]);
+ var briefHtml=brief.map(function(x){return '<div class="att"><div style="flex:1"><h4>'+esc(x[0])+'</h4><p>'+esc(x[1]||"—")+'</p></div></div>'}).join("");
+ var actionRows=acts.slice().sort(function(a,b){return a.dueAt-b.dueAt}).slice(0,7).map(function(a){return [esc(a.title),esc(a.owner),fmt(a.dueAt),st(a.priority),st(a.slaState||a.status)]});
+ var auditHtml="";
+ if(K.can("view_audit","audit",{})){auditHtml=K.getStore().audit.slice(0,6).map(function(x){return '<div class="tl"><b>'+fmt(x.at)+' · '+esc(x.kind)+'</b><p>'+esc(x.message)+'</p></div>'}).join("")}
+ return '<div id="kv2-dashboard">'+head("مرکز فرمان مدیرعامل","What Matters → Why → Who Owns It → What Needs Decision",'<button class="btn" data-kv2="tests">تست معماری</button><button class="btn primary" data-kv2="nav" data-page="ai">✦ پرسش از دستیار</button>')+
+  permissionBadge()+
+  '<div class="hero"><h3>امروز چه چیزی واقعاً به توجه مدیریتی نیاز دارد؟</h3><p>این صفحه Projection مستقیم Management Kernel است؛ Routine Work، داده خام و Notificationهای کم‌اهمیت جای تصمیم مدیریتی را نمی‌گیرند.</p><div class="chips">'+chip("Kernel v2")+chip("Role: "+user().role)+chip("Scope: "+user().scope)+'</div></div>'+
+  kpis([["تصمیم باز",ds.length,ds.filter(function(x){return x.priority==="P1"}).length+" مورد P1",ds.some(function(x){return x.priority==="P1"})?"red":""],["Approval باز",aps.length,"جدا از Decision",""],["Case بحرانی",critical.length,cs.length+" Case فعال",critical.length?"red":"green"],["Action معوق",overdue.length,acts.length+" Action باز",overdue.length?"amber":"green"]])+
+  '<div class="grid two"><div class="card panel"><div class="ph"><div><div class="pt">نیازمند توجه</div><div class="ps">مرتب‌شده بر اساس Severity و Priority</div></div><button class="link" data-kv2="nav" data-page="cases">همه موضوعات ←</button></div>'+att+'</div>'+
+  '<div class="card panel"><div class="ph"><div><div class="pt">Executive Brief زنده</div><div class="ps">از Case / Decision / Risk / SLA</div></div></div>'+briefHtml+'</div></div>'+
+  '<div class="card panel" style="margin-top:13px"><div class="ph"><div><div class="pt">سلامت حوزه‌ها بر اساس Exception</div><div class="ps">Health Score ساختگی حذف شده؛ وضعیت از Caseهای واقعی محاسبه می‌شود.</div></div></div><div class="grid modules">'+modules.map(modCard).join("")+'</div></div>'+
+  '<div class="card panel" style="margin-top:13px"><div class="ph"><div><div class="pt">اقدامات باز نزدیک به سررسید</div><div class="ps">مستقیماً از Action Store مرکزی</div></div><button class="link" data-kv2="nav" data-page="mywork">کارهای من ←</button></div>'+(actionRows.length?table(["اقدام","مالک","سررسید","اولویت","SLA"],actionRows):'<div class="option"><p>Action فعالی در Scope فعلی نیست.</p></div>')+'</div>'+
+  (auditHtml?'<div class="card panel" style="margin-top:13px"><div class="pt">آخرین تغییرات قابل Audit</div><div class="timeline">'+auditHtml+'</div></div>':"")+
+ '</div>';
+}
 function testsModal(){
  var rs=K.runAcceptanceSuite(),ok=rs.filter(function(x){return x.ok}).length;
  modal("Acceptance Suite — "+ok+"/"+rs.length,rs.map(function(r){return '<div class="att"><span class="dot '+(r.ok?"":"red")+'"></span><div style="flex:1"><h4>'+esc(r.name)+'</h4><p>'+(r.ok?"PASS":esc(r.error||"FAIL"))+'</p></div>'+st(r.ok?"Completed":"Critical")+'</div>'}).join(""),'<button class="btn" data-kv2="close">بستن</button>')
 }
 function rerenderCurrent(){
  var c=content(),h=c&&c.querySelector(".head h2"),t=h?h.textContent.trim():"";
- if(t==="مرکز تصمیم"||t==="مرکز تصمیم و تأیید")renderCenter("decisions");
+ if(t==="مرکز فرمان مدیرعامل")renderCenter("dashboard");
+ else if(t==="مرکز تصمیم"||t==="مرکز تصمیم و تأیید")renderCenter("decisions");
  else if(t==="موضوعات مدیریتی")renderCenter("cases");
  else if(t==="صندوق مدیرعامل"||t==="صندوق توجه مدیریتی")renderCenter("inbox");
  else if(t==="کارهای من")renderCenter("mywork");
@@ -102,6 +147,7 @@ function rerenderCurrent(){
 }
 function renderCenter(type){
  var c=content();if(!c)return;c.dataset.kv2=type;
+ if(type==="dashboard")c.innerHTML=dashboardView();
  if(type==="decisions")c.innerHTML=decisionsView();
  if(type==="cases")c.innerHTML=casesView();
  if(type==="inbox")c.innerHTML=inboxView();
@@ -112,7 +158,8 @@ function renderCenter(type){
 function intercept(){
  var c=content();if(!c)return;
  var h=c.querySelector(".head h2");if(!h)return;var t=h.textContent.trim();
- if(t==="مرکز تصمیم")renderCenter("decisions");
+ if(t==="مرکز فرمان مدیرعامل")renderCenter("dashboard");
+ else if(t==="مرکز تصمیم")renderCenter("decisions");
  else if(t==="موضوعات مدیریتی")renderCenter("cases");
  else if(t==="صندوق مدیرعامل")renderCenter("inbox");
  else if(t==="کارهای من")renderCenter("mywork");
@@ -123,6 +170,7 @@ document.addEventListener("click",function(ev){
  var a=x.getAttribute("data-kv2"),id=x.getAttribute("data-id");
  try{
   if(a==="close")close();
+  if(a==="nav"){var p=x.getAttribute("data-page");if(window.go&&p)window.go(p)}
   if(a==="center-tab"){ui.centerTab=x.getAttribute("data-tab");renderCenter("decisions")}
   if(a==="case-filter"){ui.caseFilter=x.getAttribute("data-filter");renderCenter("cases")}
   if(a==="decision-detail")decisionDetail(id);
