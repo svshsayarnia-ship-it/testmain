@@ -1,0 +1,44 @@
+name: Kernel v2 CI
+
+on:
+  push:
+    branches:
+      - ard-jonoub-executive-v2
+    paths:
+      - "public/management-kernel-v2.js"
+      - "public/kernel-views-v2.js"
+      - "public/kernel-bridge.js"
+      - "public/ops-depth.js"
+      - "public/hr-fix.js"
+      - "public/index.html"
+      - "tests/kernel-v2-smoke.mjs"
+      - ".github/workflows/kernel-v2-ci.yml"
+  workflow_dispatch:
+
+jobs:
+  kernel-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Syntax check kernel
+        run: node --check public/management-kernel-v2.js
+
+      - name: Syntax check kernel views
+        run: node --check public/kernel-views-v2.js
+
+      - name: Syntax check bridges
+        run: |
+          node --check public/kernel-bridge.js
+          node --check public/ops-depth.js
+          node --check public/hr-fix.js
+
+      - name: Run architecture acceptance suite
+        run: node tests/kernel-v2-smoke.mjs
