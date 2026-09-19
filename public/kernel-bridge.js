@@ -57,12 +57,12 @@ function showKernel(){
  '<div class="grid rulegrid">'+[["Event",s.activeEvents],["Case",s.cases],["Action",s.actions],["Decision",s.decisions],["Notification",s.notifications],["Links",s.links]].map(function(x){return '<div class="card rcode"><b>'+x[1]+'</b><small>'+x[0]+'</small></div>'}).join("")+'</div>'+
  '<div class="grid two" style="margin-top:12px"><div class="card panel"><div class="pt">Caseهای مرکزی</div>'+cases+'</div><div class="card panel"><div class="pt">Decisionهای مرکزی</div>'+decisions+'</div></div>'+
  '<div class="card panel" style="margin-top:12px"><div class="pt">Audit Trail</div><div class="timeline">'+audit+'</div></div></div>'+
- '<div class="mf"><button class="btn primary" data-mk="scenario">اجرای سناریوی مرجع</button><button class="btn" data-mk="sla">شبیه‌سازی +۷ ساعت SLA</button><button class="btn" data-mk="reset">Reset Kernel</button></div></div></div>'
+ '<div class="mf">'+(K.can("configure","kernel",{})?'<button class="btn primary" data-mk="scenario">اجرای سناریوی مرجع</button><button class="btn" data-mk="sla">شبیه‌سازی +۷ ساعت SLA</button><button class="btn" data-mk="reset">Reset Kernel</button>':'<span class="ps">کنترل‌های تست برای این نقش مجاز نیست.</span>')+'</div></div></div>'
 }
 function moduleLiveCard(){
  var root=document.querySelector("#od-root");if(!root)return;
  var key=root.getAttribute("data-key");if(!key||root.querySelector(".mk-live"))return;
- var d=K.getStore(),cs=d.cases.filter(function(x){return x.module===key&&x.status!=="Closed"}),as=d.actions.filter(function(x){return x.module===key&&!/Completed|Verified|Cancelled/.test(x.status)});
+ var cs=K.query("cases").filter(function(x){return x.module===key&&x.status!=="Closed"}),as=K.query("actions").filter(function(x){return x.module===key&&!/Completed|Verified|Cancelled/.test(x.status)});
  var card=document.createElement("div");card.className="card panel mk-live";card.style.marginTop="13px";
  card.innerHTML='<div class="ph"><div><div class="pt">⬡ وضعیت زنده از Management Kernel</div><div class="ps">این بخش از State مرکزی Event/Case/Action خوانده می‌شود، نه از Mock مستقل ماژول.</div></div><button class="btn sm" data-mk="open">باز کردن Kernel</button></div>'+
  '<div class="grid two"><div><div class="label">Caseهای مرتبط</div>'+(cs.length?cs.slice(-4).reverse().map(function(x){return row(x.id+" — "+x.title,x.owner,x.status)}).join(""):'<div class="option"><p>Case مرکزی فعالی برای این ماژول نیست.</p></div>')+'</div><div><div class="label">Actionهای مرتبط</div>'+(as.length?as.slice(-4).reverse().map(function(x){return row(x.id+" — "+x.title,x.owner,x.status)}).join(""):'<div class="option"><p>Action مرکزی فعالی برای این ماژول نیست.</p></div>')+'</div></div>';
@@ -72,7 +72,7 @@ function dashboardKernel(){
  var c=document.getElementById("content");if(!c||document.getElementById("mk-dashboard"))return;
  var h=c.querySelector(".head h2");if(!h||h.textContent.trim()!=="مرکز فرمان مدیرعامل")return;
  var s=K.snapshot(),box=document.createElement("div");box.id="mk-dashboard";box.className="card panel";box.style.marginTop="13px";
- box.innerHTML='<div class="ph"><div><div class="pt">⬡ هسته یکپارچه مدیریت</div><div class="ps">Event → Rule → Correlation → Case → Decision/Action → Notification → SLA → Audit</div></div><button class="btn sm" data-mk="open">جزئیات</button></div><div class="grid rulegrid">'+[["Event فعال",s.activeEvents],["Case",s.cases],["Action",s.actions],["Decision",s.decisions],["Notification",s.notifications],["Link",s.links]].map(function(x){return '<div class="card rcode"><b>'+x[1]+'</b><small>'+x[0]+'</small></div>'}).join("")+'</div>';
+ box.innerHTML='<div class="ph"><div><div class="pt">⬡ هسته یکپارچه مدیریت</div><div class="ps">Event → Rule → Correlation → Case → Decision/Action → Notification → SLA → Audit</div></div><button class="btn sm" data-mk="open">جزئیات</button></div><div class="grid rulegrid">'+[["Event فعال",s.events],["Case",s.cases],["Action",s.actions],["Decision",s.decisions],["Approval",s.approvals],["Notification",s.notifications]].map(function(x){return '<div class="card rcode"><b>'+x[1]+'</b><small>'+x[0]+'</small></div>'}).join("")+'</div>';
  c.appendChild(box)
 }
 function refreshDecor(){setTimeout(function(){addKernelButton();moduleLiveCard();dashboardKernel()},20)}
