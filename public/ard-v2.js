@@ -98,7 +98,20 @@ function table(h,rows){return '<div class="tablewrap"><table class="tbl"><thead>
 function toast(m,s){var x=document.createElement("div");x.className="toast";x.innerHTML="<b>"+esc(m)+"</b>"+(s?"<small>"+esc(s)+"</small>":"");E("toasts").appendChild(x);setTimeout(function(){x.remove()},3300)}
 function modal(title,body,foot){E("modal").innerHTML='<div class="modalbg" id="modalbg"><div class="modal"><div class="mh"><b>'+title+'</b><button class="close" onclick="closeModal()">×</button></div><div class="mb">'+body+'</div>'+(foot?'<div class="mf">'+foot+'</div>':'')+'</div></div>';E("modalbg").onclick=function(e){if(e.target.id==="modalbg")closeModal()}}
 window.closeModal=function(){E("modal").innerHTML=""}
-function renderNav(){var n=E("nav");n.innerHTML=groups.map(function(g){return '<div class="ng">'+g[0]+'</div>'+g[1].map(function(i){return '<button class="ni '+(state.page===i[0]?"active":"")+'" data-p="'+i[0]+'"><span class="ic">'+i[1]+'</span><span>'+i[2]+'</span>'+(i[3]?'<span class="num">'+i[3]+'</span>':'')+'</button>'}).join('')}).join('');Array.prototype.forEach.call(n.querySelectorAll("[data-p]"),function(b){b.onclick=function(){go(b.getAttribute("data-p"))}})}
+function liveNavCount(page,fallback){
+ var K=window.ManagementKernel;if(!K||K.version!==2)return fallback||"";
+ try{
+  if(page==="decisions")return K.query("decisions").filter(function(x){return x.status!=="Decided"}).length;
+  if(page==="inbox")return K.query("notifications").filter(function(x){return !/Resolved|Expired|Suppressed/.test(x.status)}).length;
+  if(page==="cases")return K.query("cases").filter(function(x){return x.status!=="Closed"}).length;
+  if(page==="risks")return K.query("risks").filter(function(x){return x.status!=="Closed"}).length;
+  if(page==="mywork")return K.query("actions").filter(function(x){return !/Completed|Verified|Cancelled/.test(x.status)}).length;
+  if(page==="hr")return K.queryRecords("hrCompetency").filter(function(x){return Number(x.actual)<Number(x.required)}).length;
+  return "";
+ }catch(e){return fallback||""}
+}
+function renderNav(){var n=E("nav");n.innerHTML=groups.map(function(g){return '<div class="ng">'+g[0]+'</div>'+g[1].map(function(i){var count=liveNavCount(i[0],i[3]);return '<button class="ni '+(state.page===i[0]?"active":"")+'" data-p="'+i[0]+'"><span class="ic">'+i[1]+'</span><span>'+i[2]+'</span>'+(count?'<span class="num">'+count+'</span>':'')+'</button>'}).join('')}).join('');Array.prototype.forEach.call(n.querySelectorAll("[data-p]"),function(b){b.onclick=function(){go(b.getAttribute("data-p"))}})}
+window.refreshKernelNav=renderNav;
 window.go=function(p){state.page=p;render();closeSide();window.scrollTo(0,0)}
 function closeSide(){E("sidebar").classList.remove("open");E("overlay").classList.add("hidden")}
 function dashboard(){
@@ -251,6 +264,16 @@ function render(){
  var map={dashboard:dashboard,decisions:decisions,inbox:inbox,cases:cases,risks:risks,mywork:mywork,department:department,production:production,wheat:wheat,quality:quality,inventory:inventory,maintenance:maintenance,energy:energy,procurement:procurement,sales:sales,finance:finance,tax:tax,ledger:ledger,assets:assets,hr:hr,security:security,hse:hse,meetings:meetings,projects:projects,bi:bi,documents:documents,ai:ai,settings:settings};
  E("content").innerHTML=(map[state.page]||dashboard)();renderNav();if(state.page==="ai"){var q=E("aiq");if(q)q.onkeydown=function(e){if(e.key==="Enter")askAI()}}
 }
-function setupSearch(){var i=E("gsearch"),box=E("searchres");i.oninput=function(){var q=i.value.trim().toLowerCase();if(!q){box.classList.add("hidden");return}var a=[];state.cases.forEach(function(x){a.push({t:x.title,s:x.id+" · Case",f:function(){openCase(x.id)}})});state.decisions.forEach(function(x){a.push({t:x.title,s:x.id+" · Decision",f:function(){state.decisionId=x.id;go("decisions")}})});state.inventory.forEach(function(x){a.push({t:x.name,s:x.id+" · کالا",f:function(){go("inventory");setTimeout(function(){stockDetail(x.id)},50)}})});var r=a.filter(function(x){return (x.t+" "+x.s).toLowerCase().indexOf(q)>=0}).slice(0,8);box.innerHTML=r.length?r.map(function(x,n){return '<div class="sr" data-n="'+n+'"><b>'+x.t+'</b><small>'+x.s+'</small></div>'}).join(''):'<div class="sr"><small>نتیجه‌ای پیدا نشد.</small></div>';box.classList.remove("hidden");Array.prototype.forEach.call(box.querySelectorAll("[data-n]"),function(e){e.onclick=function(){r[+e.getAttribute("data-n")].f();i.value="";box.classList.add("hidden")}})};document.addEventListener("click",function(e){if(!e.target.closest(".search"))box.classList.add("hidden")})}
+function setupSearch(){var i=E("gsearch"),box=E("searchres");i.oninput=function(){var q=i.value.trim().toLowerCase();if(!q){box.classList.add("hidden");return}var a=[],K=window.ManagementKernel;
+ if(K&&K.version===2){
+  K.query("cases").forEach(function(x){a.push({t:x.title,s:x.id+" · Case",f:function(){go("cases")}})});
+  K.query("decisions").forEach(function(x){a.push({t:x.title,s:x.id+" · Decision",f:function(){go("decisions")}})});
+  K.queryRecords("inventoryItem").forEach(function(x){a.push({t:x.name||x.id,s:x.id+" · کالا",f:function(){go("inventory")}})});
+ }else{
+  state.cases.forEach(function(x){a.push({t:x.title,s:x.id+" · Case",f:function(){openCase(x.id)}})});
+  state.decisions.forEach(function(x){a.push({t:x.title,s:x.id+" · Decision",f:function(){state.decisionId=x.id;go("decisions")}})});
+  state.inventory.forEach(function(x){a.push({t:x.name,s:x.id+" · کالا",f:function(){go("inventory")}})});
+ }
+ var r=a.filter(function(x){return (x.t+" "+x.s).toLowerCase().indexOf(q)>=0}).slice(0,8);box.innerHTML=r.length?r.map(function(x,n){return '<div class="sr" data-n="'+n+'"><b>'+esc(x.t)+'</b><small>'+esc(x.s)+'</small></div>'}).join(''):'<div class="sr"><small>نتیجه‌ای پیدا نشد.</small></div>';box.classList.remove("hidden");Array.prototype.forEach.call(box.querySelectorAll("[data-n]"),function(e){e.onclick=function(){r[+e.getAttribute("data-n")].f();i.value="";box.classList.add("hidden")}})};document.addEventListener("click",function(e){if(!e.target.closest(".search"))box.classList.add("hidden")})}
 E("menu").onclick=function(){E("sidebar").classList.toggle("open");E("overlay").classList.toggle("hidden")};E("overlay").onclick=closeSide;E("aib").onclick=function(){go("ai")};E("nb").onclick=function(){go("inbox")};setupSearch();render();
 })();

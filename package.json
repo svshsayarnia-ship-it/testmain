@@ -2,6 +2,6 @@
   "name":"facial-pro-academy",
   "version":"1.0.0",
   "private":true,
-  "scripts":{"build":"rm -rf build && mkdir build && cp -R public/. build/"},
+  "scripts":{"build":"rm -rf build && mkdir build && cp -R public/. build/","test":"node tests/kernel-v2-smoke.mjs && node tests/ui-contract.mjs"},
   "engines":{"node":">=18"}
 }

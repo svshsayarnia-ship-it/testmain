@@ -16,12 +16,17 @@ function toast(a,b){var box=document.getElementById("toasts");if(!box)return;var
 function modal(title,body,foot){var m=document.getElementById("modal");if(!m)return;m.innerHTML='<div class="modalbg"><div class="modal kv2-modal"><div class="mh"><b>'+esc(title)+'</b><button class="close" data-kv2="close">×</button></div><div class="mb">'+body+'</div>'+(foot?'<div class="mf">'+foot+'</div>':'')+'</div></div>'}
 function close(){var m=document.getElementById("modal");if(m)m.innerHTML=""}
 function user(){return K.currentUser()}
+function syncProfile(){
+ var p=document.querySelector(".profile"),u=user();if(!p)return;
+ var b=p.querySelector("b"),small=p.querySelector("small"),ava=p.querySelector(".ava");
+ if(b)b.textContent=u.name;if(small)small.textContent=u.role+" · "+u.scope;if(ava)ava.textContent=(u.name||"م").charAt(0)
+}
 function ensureRoleSwitcher(){
- var p=document.querySelector(".profile");if(!p||document.getElementById("kv2-role"))return;
+ var p=document.querySelector(".profile");syncProfile();if(!p||document.getElementById("kv2-role"))return;
  var s=document.createElement("select");s.id="kv2-role";s.className="kv2-role";s.innerHTML=[
   ["USR-CEO","مدیرعامل"],["USR-OPS","معاون عملیات"],["USR-PROC","مدیر تدارکات"],["USR-PROC-EX","کارشناس خرید"],["USR-HR","مدیر منابع انسانی"],["USR-HSE","مدیر HSE"],["USR-FIN","مدیر مالی"],["USR-AUD","حسابرس"]
  ].map(function(x){return '<option value="'+x[0]+'">'+x[1]+'</option>'}).join("");
- s.value=user().id;s.onchange=function(){K.setSession(s.value);toast("نقش فعال تغییر کرد",K.currentUser().name);rerenderCurrent()};p.parentNode.insertBefore(s,p)
+ s.value=user().id;s.onchange=function(){K.setSession(s.value);syncProfile();toast("نقش فعال تغییر کرد",K.currentUser().name);rerenderCurrent()};p.parentNode.insertBefore(s,p)
 }
 function permissionBadge(){var u=user();return '<div class="option kv2-perm"><p><b>نقش فعال:</b> '+esc(u.name)+' · '+esc(u.role)+' · Scope: '+esc(u.scope)+'</p></div>'}
 function decisionsView(){
@@ -189,7 +194,7 @@ document.addEventListener("click",function(ev){
 });
 var obs=new MutationObserver(function(){var c=content();if(c&&c.dataset.kv2)return;setTimeout(intercept,0)});
 var c=content();if(c)obs.observe(c,{childList:true,subtree:false});
-window.addEventListener("management-kernel:update",function(){setTimeout(function(){var c=content();if(c&&c.dataset.kv2){var type=c.dataset.kv2;c.removeAttribute("data-kv2");renderCenter(type)}ensureRoleSwitcher()},20)});
+window.addEventListener("management-kernel:update",function(){setTimeout(function(){var c=content();if(c&&c.dataset.kv2){var type=c.dataset.kv2;c.removeAttribute("data-kv2");renderCenter(type)}if(window.refreshKernelNav)try{window.refreshKernelNav()}catch(e){}ensureRoleSwitcher();syncProfile()},20)});
 var style=document.createElement("style");
 style.textContent=".kv2-role{border:1px solid #cbd5e1;background:white;border-radius:10px;padding:7px 8px;font-size:11px;max-width:140px}.kv2-kpis{margin-bottom:13px}.kv2-perm{margin-bottom:12px;border-inline-start:3px solid #0f766e}.kv2-modal{max-width:1000px!important}@media(max-width:720px){.kv2-role{max-width:96px;padding:6px 4px}.kv2-kpis{grid-template-columns:1fr 1fr!important}}";
 document.head.appendChild(style);

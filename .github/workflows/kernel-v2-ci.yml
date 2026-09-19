@@ -14,6 +14,7 @@ on:
       - "public/hr-fix.js"
       - "public/index.html"
       - "tests/kernel-v2-smoke.mjs"
+      - "tests/ui-contract.mjs"
       - ".github/workflows/kernel-v2-ci.yml"
   workflow_dispatch:
 
@@ -50,3 +51,6 @@ jobs:
 
       - name: Run architecture acceptance suite
         run: node tests/kernel-v2-smoke.mjs
+
+      - name: Run UI and mobile contract suite
+        run: node tests/ui-contract.mjs
