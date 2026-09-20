@@ -18,7 +18,7 @@ function escapeHtml(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c
 function sanitizeHtml(html){
   var tpl=document.createElement("template");
   tpl.innerHTML=String(html||"");
-  var allowed={DIV:1,P:1,B:1,SMALL:1,SPAN:1,BUTTON:1,BR:1};
+  var allowed={DIV:1,P:1,B:1,STRONG:1,SMALL:1,SPAN:1,BUTTON:1,BR:1,H3:1,UL:1,OL:1,LI:1};
   var allowedAttrs={"class":1,"data-kai-id":1,"data-kai":1};
   Array.from(tpl.content.querySelectorAll("*")).forEach(function(el){
     if(!allowed[el.tagName]){el.replaceWith(document.createTextNode(el.textContent||""));return}
@@ -58,6 +58,29 @@ function init(K){
   function currentActions(caseIds){return visible("actions").filter(function(a){return caseIds.indexOf(a.caseId)>=0&&!/Completed|Verified|Cancelled/.test(a.status)})}
   function currentDecisions(caseIds){return visible("decisions").filter(function(d){return caseIds.indexOf(d.caseId)>=0&&d.status!=="Decided"})}
   function latestBy(list,field){return list.slice().sort(function(a,b){return (+b[field]||+b.updatedAt||+b.createdAt||0)-(+a[field]||+a.updatedAt||+a.createdAt||0)})[0]||null}
+  var conversation=[];
+  function markdown(text){
+    var safe=escapeHtml(text||"");
+    safe=safe.replace(/^###\s+(.+)$/gm,"<h3>$1</h3>").replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>");
+    var lines=safe.split("\n"),out=[],list=false;
+    lines.forEach(function(line){
+      var item=line.match(/^\s*[-•]\s+(.+)/);
+      if(item){if(!list){out.push("<ul>");list=true}out.push("<li>"+item[1]+"</li>");return}
+      if(list){out.push("</ul>");list=false}
+      if(/^<h3>/.test(line))out.push(line);else if(line.trim())out.push("<p>"+line+"</p>");
+    });
+    if(list)out.push("</ul>");
+    return sanitizeHtml(out.join(""));
+  }
+  function compactRecord(x){
+    var out={};["id","title","name","type","module","status","severity","priority","owner","reason","context","dueAt","updatedAt"].forEach(function(k){if(x&&x[k]!=null)out[k]=x[k]});return out;
+  }
+  function liveContext(){
+    var page=document.querySelector("#content .head h2"),records={};
+    ["cases","actions","decisions","approvals","risks","events"].forEach(function(kind){records[kind]=visible(kind).slice(0,12).map(compactRecord)});
+    var snapshot={};try{snapshot=K.snapshot()}catch(_){snapshot={}}
+    return {page:page?page.textContent.trim():"دستیار هوشمند",user:{name:K.currentUser().name,role:K.currentUser().role,scope:K.currentUser().scope},snapshot:snapshot,records:records};
+  }
 
   function productionAnswer(){
     var prodEvents=visible("events").filter(function(e){return e.module==="production"&&e.status==="Active"});
@@ -135,14 +158,23 @@ function init(K){
     if(/ریسک|بحرانی|critical/i.test(q))return riskAnswer();
     return genericAnswer(q);
   }
-  function ask(q){
+  async function ask(q){
     var inp=document.getElementById("aiq");q=(q||(inp&&inp.value)||"").trim();if(!q)return;
     var box=document.getElementById("aimsgs");if(!box)return;
     var userMsg=document.createElement("div");userMsg.className="msg user";userMsg.textContent=q;box.appendChild(userMsg);
     if(inp)inp.value="";
     var bot=document.createElement("div");bot.className="msg bot";
-    var src=document.createElement("div");src.className="kai-source";src.textContent="Evidence-based · Kernel v2 · Scope: "+K.currentUser().name;bot.appendChild(src);
-    var body=document.createElement("div");body.innerHTML=sanitizeHtml(answer(q));bot.appendChild(body);box.appendChild(bot);box.scrollTop=box.scrollHeight;
+    var src=document.createElement("div");src.className="kai-source";src.textContent="در حال بررسی راهنمای نرم‌افزار و اطلاعات مجاز…";bot.appendChild(src);
+    var body=document.createElement("div");body.innerHTML="<p>کمی صبر کنید…</p>";bot.appendChild(body);box.appendChild(bot);box.scrollTop=box.scrollHeight;
+    try{
+      var response=await fetch("/api/coach",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question:q,context:liveContext(),history:conversation.slice(-6)})});
+      var data=await response.json();if(!response.ok)throw new Error(data.error||"پاسخی دریافت نشد");
+      body.innerHTML=markdown(data.answer||"");src.textContent=data.status||"راهنمای هوشمند نرم‌افزار";
+      conversation.push({role:"user",content:q},{role:"assistant",content:data.answer||""});
+    }catch(error){
+      body.innerHTML=sanitizeHtml(answer(q));src.textContent="پاسخ داخلی هسته مدیریتی؛ اتصال ChatGPT موقتاً در دسترس نیست";
+    }
+    box.scrollTop=box.scrollHeight;
   }
   window.askAI=ask;
 
@@ -181,7 +213,7 @@ function init(K){
         var intro=document.querySelector("#aimsgs .msg.bot");
         if(intro&&!intro.dataset.kai){
           intro.dataset.kai="1";
-          intro.innerHTML='<b>دستیار:</b><br>پاسخ‌ها فقط از Management Kernel و Evidence Graph ساخته می‌شوند؛ اگر Evidence کافی نباشد علت حدس زده نمی‌شود.<div class="quick"><button data-kai-prompt="چرا تولید امروز کمتر از برنامه بود؟">چرا تولید کم شد؟</button><button data-kai-prompt="کدام خریدها ریسک تأمین دارند؟">ریسک خرید</button><button data-kai-prompt="برای پست‌های کلیدی چه جانشینی داریم؟">جانشینی</button><button data-kai-prompt="ریسک‌های بحرانی چیست؟">ریسک‌ها</button></div>';
+          intro.innerHTML='<b>دستیار راهنمای نرم‌افزار:</b><br>درباره هر ماژول، منو، گزینه، فرم یا منطق سامانه سؤال کنید. پاسخ با ChatGPT و راهنمای جامع همین نرم‌افزار ساخته می‌شود و برای وضعیت جاری فقط از اطلاعات مجاز هسته مدیریتی استفاده می‌کند.<div class="quick"><button data-kai-prompt="ماژول تدارکات چه کاری انجام می‌دهد و با انبار چه ارتباطی دارد؟">راهنمای تدارکات</button><button data-kai-prompt="گزینه حیاتی در درخواست قطعه یعنی چه؟">گزینه حیاتی</button><button data-kai-prompt="موضوع مدیریتی چه تفاوتی با هشدار و اقدام دارد؟">منطق سامانه</button><button data-kai-prompt="چرا تولید امروز کمتر از برنامه بود؟">وضعیت تولید</button></div>';
         }
       },0);
     }
