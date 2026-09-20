@@ -65,5 +65,22 @@ function selectGuide(question,limit){
   return selected.length?selected:modules;
 }
 function navigation(){return modules.map(function(m){return m.title+' ('+m.id+')'}).join('، ')}
+function canonicalIntent(question){
+  const q=normalize(question);
+  const purposePatterns=[/چی کار می کند/,/چی کار می کنه/,/چه کار می کند/,/چه کار می کنه/,/چه کاری انجام می دهد/,/چه کاری انجام میده/,/کارش چیه/,/کار .+ چیه/,/وظیفه/,/کاربرد/,/برای چیست/,/برای چیه/,/معرفی/,/توضیح بده/];
+  if(!purposePatterns.some(function(pattern){return pattern.test(q)}))return null;
+  const ranked=modules.map(function(module){return {module:module,score:scoreModule(question,module)}}).sort(function(a,b){return b.score-a.score});
+  if(!ranked[0]||ranked[0].score<=0)return null;
+  return {intent:'module-purpose',module:ranked[0].module};
+}
+function canonicalAnswer(question){
+  const match=canonicalIntent(question);if(!match)return null;
+  const m=match.module;
+  return {
+    id:'module-purpose:'+m.id,
+    moduleId:m.id,
+    answer:'### '+m.title+'\n'+m.purpose+'\n\n**بخش‌های اصلی:** '+m.sections.join('، ')+'\n\n**منطق کار:** '+m.logic+'\n\n**بخش مرتبط در نرم‌افزار:** '+m.title
+  };
+}
 
-module.exports={modules,glossary,workflows,selectGuide,navigation};
+module.exports={modules,glossary,workflows,selectGuide,navigation,canonicalIntent,canonicalAnswer};
