@@ -69,6 +69,8 @@ module.exports=async(req,res)=>{
   const {question,context,history}=req.body||{};
   if(typeof question!=='string'||question.trim().length<3)return res.status(400).json({error:'پرسش باید حداقل ۳ نویسه داشته باشد.'});
   if(question.length>MAX_QUESTION_CHARS)return res.status(413).json({error:'پرسش بیش از حد طولانی است.'});
+  const canonical=guide.canonicalAnswer(question.trim());
+  if(canonical)return res.status(200).json({answer:canonical.answer,status:'پاسخ مرجع راهنمای نرم‌افزار',source:'canonical-guide',answerId:canonical.id,moduleId:canonical.moduleId});
   try{
     const answer=await askOpenAI(question.trim(),cleanLiveContext(context),history);
     return res.status(200).json({answer,status:'پاسخ ChatGPT بر پایه راهنمای نرم‌افزار',source:'software-guide'});
