@@ -24,6 +24,9 @@ const checks = [
   ,["Operational modules and statuses have Persian labels", ["گندم و سیلوها","دفتر کل","اموال و دارایی‌ها","در حال تولید","در انتظار قطعه","در معرض خطر","تازگی اطلاعات"].every(term => faUi.includes(term))]
   ,["Part request is available from inventory UI", /data-mrv2="part-request"/.test(read("public/module-records-v2.js")) && /K\.requestPart\(v\)/.test(read("public/module-records-v2.js"))]
   ,["Procurement UI advances PR to order and receipt", /data-mrv2="order-pr"/.test(read("public/module-records-v2.js")) && /data-mrv2="receive-pr"/.test(read("public/module-records-v2.js"))]
+  ,["Mobile menu locks background scrolling", /classList\.toggle\("menu-open",opening\)/.test(app) && /body\.menu-open,body\.modal-open\{overflow:hidden/.test(css)]
+  ,["Long menus keep touch scrolling without visible bars", /height:100dvh/.test(css) && /overscroll-behavior:contain/.test(css) && /\.sidebar::-webkit-scrollbar\{display:none/.test(css)]
+  ,["Modal scroll lock follows every dialog implementation", /new MutationObserver/.test(app) && /classList\.toggle\("modal-open"/.test(app)]
 ];
 
 for (const [name, ok] of checks) console.log(`${ok ? "PASS" : "FAIL"}: ${name}`);
